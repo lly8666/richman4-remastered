@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "rich4/world_validation.hpp"
+#include "rich4/mod_rules.hpp"
 #include "rich4/calendar.hpp"
 
 #include <array>
@@ -193,7 +194,7 @@ void validate_playable_world(const World &world) {
             const auto field = element(path + ".float_bits", j);
             const auto value = finite_float(stock.float_bits[j], field);
             if (j <= 2)
-                check(value >= 0 && value <= 10000, field, "is outside the original stock price domain");
+                check(value >= 0 && value <= mod::max_stock_price, field, "is outside the MOD stock price domain");
         }
         for (std::size_t j = 0; j < world.stock_history_bits[i].size(); ++j)
             (void)finite_float(world.stock_history_bits[i][j], element(element("stock_history_bits", i), j));
