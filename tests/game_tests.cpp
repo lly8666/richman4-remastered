@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <functional>
 #include <iostream>
+#include <numeric>
 #include <stdexcept>
 #include <string>
 
@@ -166,6 +167,26 @@ void loaded_dice_event_snapshots() {
     require(identical.random_state() == loaded.random_state() &&
                 identical.world().export_save() == loaded.world().export_save(),
             "presentation snapshots must not change rule outcomes or saved RNG");
+}
+// A loaded DAT must preserve the original selected dice count (e.g. a car can
+// roll three dice), including the three actual face values on its UI event.
+void loaded_vehicle_dice_count() {
+    auto value = world();
+    value.players[0].state.traffic_method = 2;
+    value.players[0].state.dice_count = 3;
+    const auto save = rich4::SaveFile::decode(value.export_save());
+    rich4::GameSession loaded(rich4::World::from_save(save), 5);
+    require(loaded.world().players[0].state.traffic_method == 2 &&
+                loaded.world().players[0].state.dice_count == 3,
+            "loading DAT must not lose the selected car dice count");
+    require(loaded.roll_dice(), "loaded car should roll");
+    const auto events = loaded.drain_events();
+    const auto dice = std::find_if(events.begin(), events.end(), [](const auto &e) {
+        return e.kind == rich4::GameEventKind::dice_rolled;
+    });
+    require(dice != events.end() && dice->dice.size() == 3 &&
+                dice->amount == std::accumulate(dice->dice.begin(), dice->dice.end(), 0),
+            "loaded car should display all three dice and use their summed movement");
 }
 void parachute_marks_a_spawned_player() {
     auto value = world();
@@ -1472,6 +1493,7 @@ int main() {
         dice_and_paths();
         dice_effect_is_presentation_only();
         loaded_dice_event_snapshots();
+        loaded_vehicle_dice_count();
         parachute_marks_a_spawned_player();
         tool_and_card_effects();
         missile_presentation_order();
