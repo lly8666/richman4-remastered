@@ -712,7 +712,6 @@ struct GameSession::Impl {
         }
         emit(GameEventKind::dice_rolled, player_name(actor()) + "前进" + std::to_string(remaining) + "步",
              remaining);
-        events.back().dice = faces; // Freeze each roll for presentation, even across batched AI turns.
         if (!faces.empty()) { // fcn_00419572: values first, then the Panel 4..6 dice movie.
             effect(EffectKind::dice_roll, actor(), actor_point(actor()));
             effects.back().dice = faces;
