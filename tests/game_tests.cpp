@@ -349,9 +349,9 @@ void property_and_rent() {
     value.lands[1].economy.level = 2;
     rich4::GameSession buy(std::move(value), 0);
     first_landing(buy);
-    require(buy.pending_decision()->amount == 3600, "purchase base and per-level fields reversed");
+    require(buy.pending_decision()->amount == 1800, "MOD fixed price index must ignore fixture inflation");
     require(buy.respond(0), "buy decision failed");
-    require(buy.world().lands[1].economy.owner_code == 1 && buy.world().players[0].state.cash == 96400,
+    require(buy.world().lands[1].economy.owner_code == 1 && buy.world().players[0].state.cash == 98200,
             "purchase did not update owner/cash");
     value = world();
     property_nodes(value);
