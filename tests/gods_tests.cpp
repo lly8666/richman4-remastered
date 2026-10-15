@@ -94,6 +94,51 @@ void attachment() {
                 world.players[0].state.traffic_method == 0,
             "Second kind15 object stores its ID, sells transport/cards without crediting returned points");
 }
+// Display only: the original first plays the god film, then its caption,
+// then reports individual gained/lost card names. Callback must not consume RNG.
+void card_reward_and_loss_presentations() {
+    for (const auto kind : {3U, 4U, 7U, 8U, 15U}) {
+        auto world = fixture();
+        auto &cards = world.players[0].state.cards;
+        if (kind >= 7) {
+            cards[0] = 1; cards[1] = 2; cards[2] = 3; cards[3] = 4;
+        }
+        const auto before = card_count(cards);
+        std::vector<int> order;
+        std::uint8_t reported_kind = 0, first = 0, second = 0;
+        unsigned removed = 0;
+        gods::Callbacks callbacks;
+        callbacks.appeared = [&](std::size_t slot, std::uint8_t got) {
+            require(slot == 0 && got == kind, "God movie kind");
+            order.push_back(1);
+        };
+        callbacks.arrival = [&](std::size_t slot, std::uint8_t got) {
+            require(slot == 0 && got == kind, "God caption kind");
+            order.push_back(2);
+        };
+        callbacks.cards_changed = [&](std::size_t slot, std::uint8_t got,
+                                       std::uint8_t a, std::uint8_t b, unsigned count) {
+            require(slot == 0, "God inventory notice target");
+            order.push_back(3);
+            reported_kind = got; first = a; second = b; removed = count;
+        };
+        Random random(11);
+        require(gods::attach(world, random, 0, static_cast<std::uint16_t>(kind), 0, callbacks).applied,
+                "God must attach for presentation test");
+        require(order == std::vector<int>({1, 2, 3}) && reported_kind == kind,
+                "Card change notification must follow the god movie and caption");
+        const auto after = card_count(world.players[0].state.cards);
+        if (kind == 3 || kind == 4)
+            require(after > before && first > 0 && (kind == 3 || second > 0) && removed == 0,
+                    "Fortune gods must name the cards that were actually awarded");
+        else if (kind == 7)
+            require(before == after + 1 && first > 0 && removed == 1,
+                    "Small poverty god must name the removed card");
+        else
+            require(before == after + removed && removed > 0 && first == 0 && second == 0,
+                    "Half/all-loss gods must state the actual discarded card count");
+    }
+}
 void encounters() {
     auto world = fixture();
     Random random(1);
@@ -315,6 +360,7 @@ void attach_oracle(const std::filesystem::path &directory) {
 int main(int argc, char **argv) {
     try {
         attachment();
+        card_reward_and_loss_presentations();
         encounters();
         property_rules();
         if (argc == 3 && std::string(argv[1]) == "--oracle") {
