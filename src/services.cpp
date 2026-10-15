@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "rich4/services.hpp"
+#include "rich4/mod_rules.hpp"
 #include "rich4/stocks.hpp"
 #include <algorithm>
 #include <bit>
@@ -92,7 +93,7 @@ void computer_shop(World &world, Shop &shop, std::size_t slot) {
     constexpr std::array<std::uint8_t, 6> order{8, 2, 7,
                                                 1, 4, 3}; // Original 0x4755f0, converted to one-based IDs.
     for (const auto id : order) {
-        if (player.tool_amounts[id - 1] < 9 && !dislikes(tool_preferences[id - 1]) &&
+        if (player.tool_amounts[id - 1] < mod::max_tool_amount && !dislikes(tool_preferences[id - 1]) &&
             tool_prices[id - 1] <= tool_budget && world.tool_supply[id - 1]) {
             buy_tool_unchecked(world, shop, slot, id);
             tool_budget -= tool_prices[id - 1];
@@ -162,7 +163,7 @@ bool buy_tool(World &world, Shop &shop, std::size_t slot, std::uint8_t id) {
     auto &player = world.players.at(slot).state;
     const auto item = std::find(shop.tools.begin(), shop.tools.end(), id);
     if (shop.closed || !id || id > 8 || item == shop.tools.end() || player.points < tool_prices[id - 1] ||
-        player.tool_amounts[id - 1] >= 9 || !world.tool_supply[id - 1])
+        player.tool_amounts[id - 1] >= mod::max_tool_amount || !world.tool_supply[id - 1])
         return false;
     buy_tool_unchecked(world, shop, slot, id);
     if (!world.tool_supply[id - 1])
