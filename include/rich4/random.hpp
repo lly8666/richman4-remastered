@@ -21,4 +21,19 @@ class Random {
     std::uint32_t state_;
 };
 
+// Original Windows Rich4 calls srand(GetTickCount()) after loading a save. A
+// DAT does not contain the CRT RNG state, so interactive reloads should use a
+// fresh monotonic-clock seed instead of replaying a native .rng sidecar.
+// The increment ensures even two loads in the same millisecond get new seeds.
+// Fixed-seed automated replays bypass this helper and restore their sidecar.
+class LoadSeedSequence {
+  public:
+    [[nodiscard]] std::uint32_t next(std::uint32_t monotonic_milliseconds) noexcept {
+        return monotonic_milliseconds + ++sequence_;
+    }
+
+  private:
+    std::uint32_t sequence_ = 0;
+};
+
 } // namespace rich4
