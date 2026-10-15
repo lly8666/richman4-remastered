@@ -16,6 +16,7 @@
 #include "rich4/calendar.hpp"
 #include "rich4/direction.hpp"
 #include "rich4/game.hpp"
+#include "rich4/mod_rules.hpp"
 #include "rich4/random.hpp"
 #include "rich4/services.hpp"
 #include "rich4/stocks.hpp"
@@ -2501,7 +2502,7 @@ class Application {
                              card_count(player.cards) < 15) ||
                             (action > 200 && action <= 208 &&
                              player.points >= services::tool_prices[action - 201] &&
-                             player.tool_amounts[action - 201] < 9)) {
+                             player.tool_amounts[action - 201] < mod::max_tool_amount)) {
                             choice = i;
                             break;
                         }
