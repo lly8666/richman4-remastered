@@ -88,13 +88,13 @@ void tool_rules() {
     require(!receive_tool(amounts, supply, 1), "limited tool needs supply");
     supply[0] = 1;
     require(receive_tool(amounts, supply, 1) && amounts[0] == 1 && supply[0] == 0, "tool supply transfer");
-    amounts[0] = 8;
+    amounts[0] = 998;
     supply[0] = 2;
-    require(receive_tool(amounts, supply, 1) && amounts[0] == 9 && supply[0] == 1, "receive reaches cap");
-    require(!receive_tool(amounts, supply, 1) && supply[0] == 1, "cap prevents supply charge");
-    amounts[0] = 255;
-    require(!receive_tool(amounts, supply, 1) && amounts[0] == 255,
-            "out-of-normal high count remains capped");
+    require(receive_tool(amounts, supply, 1) && amounts[0] == 999 && supply[0] == 1, "receive reaches MOD cap");
+    require(!receive_tool(amounts, supply, 1) && supply[0] == 1, "MOD cap prevents supply charge");
+    amounts[0] = 1000;
+    require(!receive_tool(amounts, supply, 1) && amounts[0] == 1000,
+            "out-of-range high count remains capped");
     const auto supply_before_unlimited = supply;
     require(receive_tool(amounts, supply, 13) && amounts[12] == 1 && supply == supply_before_unlimited,
             "tool types 9..13 have no shared supply");
@@ -102,7 +102,7 @@ void tool_rules() {
             "unlimited tool consume leaves shared supply unchanged");
     require(!consume_tool(amounts, supply, 13), "zero tools is a no-op");
     supply[0] = 255;
-    require(consume_tool(amounts, supply, 1) && amounts[0] == 254 && supply[0] == 0,
+    require(consume_tool(amounts, supply, 1) && amounts[0] == 999 && supply[0] == 0,
             "tool supply byte wraps on return");
     amounts.fill(255);
     supply.fill(255);
@@ -145,11 +145,11 @@ void invalid_inputs() {
     }
 }
 
-template <std::size_t Size> void read_array(std::istream &input, std::array<std::uint8_t, Size> &result) {
+template <typename T, std::size_t Size> void read_array(std::istream &input, std::array<T, Size> &result) {
     for (auto &value : result) {
         unsigned parsed;
         require(static_cast<bool>(input >> parsed) && parsed <= 255, "invalid oracle byte");
-        value = static_cast<std::uint8_t>(parsed);
+        value = static_cast<T>(parsed);
     }
 }
 
