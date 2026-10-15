@@ -14,4 +14,8 @@ template <typename Count> inline void grant_equipped_tool(Count &count) noexcept
     if (count < max_tool_amount)
         ++count;
 }
+inline void credit_points(std::uint16_t &points, std::uint32_t amount) noexcept {
+    const auto credited = std::uint64_t(points) + amount;
+    points = static_cast<std::uint16_t>(credited > UINT16_MAX ? UINT16_MAX : credited);
+}
 }
