@@ -515,6 +515,59 @@ void facilities_events_and_rescue() {
     require(park.respond(0) && park.world().facilities[1].facility_type == 0 && park.world().facilities[1].level == 1 &&
                 park.world().facilities[1].owner_code == 1,
             "a human 公園 build (slot 0) must construct a level-1 park, not give up");
+    // Regression: building a level-1 research institute MUST start the research
+    // selection, not silently end the turn. The result is persisted in save bytes.
+    rich4::GameSession laboratory(value, 0);
+    first_landing(laboratory);
+    require(laboratory.respond(4) && laboratory.pending_decision() &&
+                laboratory.pending_decision()->kind == rich4::DecisionKind::research_tool,
+            "research institute construction did not open the research picker");
+    require(laboratory.pending_decision()->options.size() == 2 &&
+                laboratory.pending_decision()->options[0].value == 9,
+            "level-1 research must only offer the machine worker and postpone");
+    require(laboratory.respond(0) && laboratory.world().facilities[1].flags_30 == 5 &&
+                laboratory.world().facilities[1].research_product == 0,
+            "selected research must start a five-day production cycle");
+    const auto saved_lab = rich4::World::from_save(rich4::SaveFile::decode(laboratory.export_save()));
+    require(saved_lab.facilities[1].flags_30 == 5 &&
+                saved_lab.facilities[1].research_product == 0,
+            "research progress lost during DAT save/reload");
+
+    // Regression: level 5 can choose every level's product even without upgrade funds.
+    auto max_lab = value;
+    max_lab.facilities[1].facility_type = 4;
+    max_lab.facilities[1].level = 5;
+    max_lab.players[0].state.cash = 0;
+    rich4::GameSession all_products(max_lab, 0);
+    first_landing(all_products);
+    require(all_products.pending_decision() &&
+                all_products.pending_decision()->kind == rich4::DecisionKind::research_tool &&
+                all_products.pending_decision()->options.size() == 6 &&
+                all_products.pending_decision()->options[4].value == 13,
+            "max-level lab did not offer five research items");
+    require(all_products.respond(4) && all_products.world().facilities[1].flags_30 == 5 &&
+                all_products.world().facilities[1].research_product == 4,
+            "level-5 nuclear missile research selection failed");
+
+    // Research proceeds on calendar days, not taps or UI frame count; the completed
+    // tool is deposited in the owner's inventory after the fifth game day.
+    const auto before_tools = laboratory.world().players[0].state.tool_amounts[8];
+    for (unsigned ticks = 0; ticks < 150000 && laboratory.world().facilities[1].flags_30; ++ticks) {
+        if (laboratory.phase() == rich4::GamePhase::human_ready)
+            require(laboratory.roll_dice(), "research test could not advance the human turn");
+        if (laboratory.pending_decision()) {
+            const auto &pending = *laboratory.pending_decision();
+            // Decline incidental upgrades and wait before starting another project.
+            const auto choice = pending.options.empty() ? 0U : static_cast<unsigned>(pending.options.size() - 1);
+            if (!pending.options.empty())
+                require(laboratory.respond(choice), "research test failed to answer a decision");
+        }
+        laboratory.tick(160);
+    }
+    require(laboratory.world().facilities[1].flags_30 == 0 &&
+                laboratory.world().players[0].state.tool_amounts[8] == before_tools + 1,
+            "completed 5-day research failed to award machine worker");
+
     value.facilities[1].owner_code = 2;
     value.facilities[1].facility_type = 2;
     value.facilities[1].level = 1;
