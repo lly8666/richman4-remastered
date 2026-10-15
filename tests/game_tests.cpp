@@ -124,6 +124,47 @@ void dice_and_paths() {
     require(fallback.world().players[0].state.node_id == 2 && fallback.random_state() == once.state(),
             "fallback must return to last node without consuming randomness");
 }
+// A loaded session can advance several computer turns before the UI drains events.
+// Each dice animation must belong to the player/event that generated it, not the
+// most recent faces in GameSession::dice() at presentation time.
+void loaded_dice_event_snapshots() {
+    auto value = world();
+    for (auto &node : value.nodes)
+        node.flags = (node.flags & ~0xffU) | 1U; // road-only: no unrelated landing choices
+    const auto save = rich4::SaveFile::decode(value.export_save());
+    constexpr std::uint32_t saved_rng_state = 1;
+    rich4::GameSession loaded(rich4::World::from_save(save), saved_rng_state);
+    require(loaded.roll_dice(), "loaded human must roll");
+    loaded.tick(100000);
+    require(loaded.phase() == rich4::GamePhase::human_ready,
+            "four-player turn cycle should return to the human");
+    const auto events = loaded.drain_events();
+    const auto effects = loaded.drain_effects();
+    std::vector<std::vector<std::uint8_t>> rolls;
+    std::vector<std::vector<std::uint8_t>> movie_rolls;
+    for (const auto &event : events)
+        if (event.kind == rich4::GameEventKind::dice_rolled) {
+            require(event.player == rolls.size() && event.dice.size() == 1 &&
+                        event.amount == event.dice.front(),
+                    "batched dice events must contain original player's faces and steps");
+            rolls.push_back(event.dice);
+        }
+    for (const auto &effect : effects)
+        if (effect.kind == rich4::EffectKind::dice_roll)
+            movie_rolls.push_back(effect.dice);
+    require(rolls.size() == 4 && rolls == movie_rolls,
+            "all four loaded players must retain distinct, ordered dice movie payloads");
+    require(rolls.front() != rolls.back() && loaded.dice() == rolls.back(),
+            "test must demonstrate older rolls differ from the latest live session roll");
+    // The original DAT does not carry RNG state: the sidecar preserves it, and
+    // display-side snapshots must not consume extra Watcom random draws.
+    rich4::GameSession identical(rich4::World::from_save(save), saved_rng_state);
+    require(identical.roll_dice(), "second loaded session must roll");
+    identical.tick(100000);
+    require(identical.random_state() == loaded.random_state() &&
+                identical.world().export_save() == loaded.world().export_save(),
+            "presentation snapshots must not change rule outcomes or saved RNG");
+}
 void parachute_marks_a_spawned_player() {
     auto value = world();
     auto &state = value.players[0].state;
@@ -1428,6 +1469,7 @@ int main() {
         landing_pauses();
         dice_and_paths();
         dice_effect_is_presentation_only();
+        loaded_dice_event_snapshots();
         parachute_marks_a_spawned_player();
         tool_and_card_effects();
         missile_presentation_order();
