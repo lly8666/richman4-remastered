@@ -2478,6 +2478,14 @@ struct GameSession::Impl {
             effects.back().object_kind = kind;
         };
         callbacks.arrival = [this](auto slot, auto kind) { announce(Announcement::god_arrival, slot, kind); };
+        callbacks.cards_changed = [this](auto slot, auto kind, auto first, auto second, auto removed) {
+            // The original's "%s附身\\n\\n得到/遺失%s" box comes AFTER the
+            // appearance FLC and the 2400ms god caption, never before them.
+            auto &box = announce(Announcement::god_inventory, slot, kind);
+            box.value = first;
+            box.second_subject = second;
+            box.amount = static_cast<std::int32_t>(removed);
+        };
         callbacks.sound = [this](auto slot, auto sound) { cue(slot, sound); }; // AUDIO: 54 / 35 / 36
         callbacks.leaving = [this](auto slot, auto kind) {
             effect(EffectKind::god_leave, slot, actor_point(slot));
