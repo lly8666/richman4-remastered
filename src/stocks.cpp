@@ -2,6 +2,7 @@
 // Derived from Iru Cai's asm/rich4_stocks.asm, original entries 0x428e23,
 // 0x428ec5, 0x429040 and 0x4294d5. No Windows ABI or host pointer fields.
 #include "rich4/stocks.hpp"
+#include "rich4/mod_rules.hpp"
 #include "rich4/legacy_float.hpp"
 #include "rich4/random.hpp"
 #include "rich4/world.hpp"
@@ -116,7 +117,7 @@ bool update_commercial_owner(World &world, std::size_t player, std::size_t stock
 }
 
 float adjusted_price(float previous, float percent) {
-    if (!std::isfinite(previous) || previous < 0 || previous > 10000 || !std::isfinite(percent) ||
+    if (!std::isfinite(previous) || previous < 0 || previous > mod::max_stock_price || !std::isfinite(percent) ||
         percent < -10 || percent > 10) {
         throw std::invalid_argument("stock price update is outside the finite original market domain");
     }
@@ -141,7 +142,7 @@ float adjusted_price(float previous, float percent) {
     const float rounded =
         (percent > 0 ? Extended::from(candidate) - remainder : Extended::from(candidate) + remainder)
             .single();
-    return std::clamp(rounded, 1.0F, 9999.0F);
+    return std::clamp(rounded, 1.0F, mod::max_stock_price);
 }
 
 PriceTrend trend(const World &world, std::size_t stock) {
@@ -267,7 +268,7 @@ std::int32_t player_wealth(const World &world, std::size_t player) {
     for (std::size_t stock = 0; stock < world.stocks.size(); ++stock) {
         const auto quote = std::bit_cast<float>(world.stocks[stock].float_bits[2]);
         const auto amount = account.stocks[stock].amount;
-        if (!std::isfinite(quote) || quote < 0 || quote > 10000 || amount < 0 || (quote != 0 && quote < 1)) {
+        if (!std::isfinite(quote) || quote < 0 || quote > mod::max_stock_price || amount < 0 || (quote != 0 && quote < 1)) {
             throw std::invalid_argument("wealth requires valid market quotes and nonnegative holdings");
         }
         // In the original FILD total / FSTP float loses low integer bits before
