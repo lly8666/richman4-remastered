@@ -298,6 +298,19 @@ void land_god_own_upgrade() {
                 "land god must not suppress an own-land upgrade choice");
         require(game.respond(0) && game.world().lands[1].economy.level == 3,
                 "land god must allow the ordinary paid upgrade on owned land");
+        // On UNOWNED land, the land god claims it after the normal landing
+        // without forcing the user through a paid purchase dialog.
+        auto empty = world();
+        property_nodes(empty);
+        auto &incoming = empty.objects.at(object_id - 1);
+        incoming.kind = 12;
+        incoming.attached_player = 1;
+        incoming.node_id = empty.players[0].state.node_id;
+        empty.players[0].status.god_info = static_cast<std::uint8_t>(object_id);
+        rich4::GameSession claim(std::move(empty), 5);
+        first_landing(claim);
+        require(!claim.pending_decision() && claim.world().lands[1].economy.owner_code == 1,
+                "land god must claim unowned land by kind, without paid purchase");
     }
 }
 void property_and_rent() {
