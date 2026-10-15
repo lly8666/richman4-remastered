@@ -1774,7 +1774,7 @@ struct GameSession::Impl {
         // Original ignores sale return values, but removes equipped transport.
         const auto traffic = state.traffic_method & 3U;
         if (traffic)
-            ++state.tool_amounts[traffic == 3 ? 11 : traffic + 3];
+            mod::grant_equipped_tool(state.tool_amounts[traffic == 3 ? 11 : traffic + 3]);
         state.traffic_method = 0;
         state.dice_count = 1;
         (void)sell_stored_tools(state.tool_amounts, world.tool_supply, services::tool_prices);
