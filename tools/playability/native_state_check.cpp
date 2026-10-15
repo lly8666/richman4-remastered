@@ -54,8 +54,8 @@ std::string hex_bytes(std::string_view bytes) {
     return result;
 }
 
-template <std::size_t Size>
-void write_array(std::ostream &output, const std::array<std::uint8_t, Size> &values) {
+template <typename T, std::size_t Size>
+void write_array(std::ostream &output, const std::array<T, Size> &values) {
     output << '[';
     for (std::size_t index = 0; index < values.size(); ++index) {
         if (index)
