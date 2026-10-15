@@ -289,6 +289,11 @@ struct EffectEvent {
     // commit frame, i.e. the building before the rule demolished it.
     std::uint8_t previous_level = 0, previous_type = 0;
     std::uint8_t direction = 0; // god_leave: the carrier's heading (sprite frame and trailing offset)
+    // Target building before a destructive/build movie. Core rules are committed
+    // immediately, but the board must retain this old property until the movie's
+    // original commit frame. Also allows earlier queued speech/cards to draw it.
+    std::uint8_t previous_owner = 0;
+    bool has_previous_property = false;
     bool operator==(const EffectEvent &) const = default;
 };
 
