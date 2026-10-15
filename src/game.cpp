@@ -117,6 +117,9 @@ struct GameSession::Impl {
         for (const auto &player : world.players)
             if (player.state.node_id >= world.nodes.size() || player.state.last_node_id >= world.nodes.size())
                 throw std::invalid_argument("player node outside native world");
+        // Imported vanilla saves may contain an inflated price index. Normalize
+        // before the first turn and retain 1 through time-machine restores.
+        world.header.price_index = mod::fixed_price_index;
         if (!world.has_initial_random_state() && check_game_end())
             return;
         if (world.has_initial_random_state()) {
@@ -3497,18 +3500,8 @@ struct GameSession::Impl {
         return stocks::player_wealth(world, slot);
     }
     void update_price_index() {
-        // MOD: inflation is disabled even when wealth climbs sharply.
+        // MOD rules never allow inflation, including after wealth recalculation.
         world.header.price_index = mod::fixed_price_index;
-        return;
-        std::int32_t total = 0, active = 0;
-        for (std::size_t i = 0; i < world.players.size(); ++i)
-            if (world.players[i].state.controller_flags) {
-                total = add32(total, wealth(i));
-                ++active;
-            }
-        if (active && world.header.initial_fund > 0)
-            world.header.price_index =
-                std::max(world.header.price_index, (total / active) / world.header.initial_fund);
     }
     // MONTHLY: presentation figures shared by the monthly-cycle screens (no rule effect).
     MonthlyFigures monthly_figures() const {
