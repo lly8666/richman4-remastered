@@ -57,6 +57,10 @@ through a separate native-looking rectangular dialog.
   white/shadowed typeface as the facility choice. First tap shows the selected tool name.
 - **Pictures:** original `Panel.mkf 11:1` tool tray at (14,279), with original sprites
   `Panel.mkf 11:(tool_id+1)` for tools 9..13 (機器工人, 時光機, 傳送機, 工程車, 核子飛彈).
+  The five selectable cells start at (20+80i,285), size 78×54. Research icons
+  now use the **centre** of those cells, (59+80i,312), rather than the inventory
+  display's count-reserving anchor (43+80i,312). Previously the research icons
+  looked shifted 16px left relative to the texture/selection outline.
 - **Level lock:** all five icons are visible; a tool missing from `decision.options` is
   darkened and has no hit target. Options remain in the engine's order.
 - **Touch:** first tap selects a 78×54 icon cell, displaying the same three nested yellow
