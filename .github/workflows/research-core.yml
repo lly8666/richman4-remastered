@@ -1,0 +1,28 @@
+name: Research institute core regression
+
+on:
+  push:
+    paths:
+      - src/game.cpp
+      - src/world.cpp
+      - include/rich4/game.hpp
+      - include/rich4/world.hpp
+      - tests/game_tests.cpp
+      - .github/workflows/research-core.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure headless C++20 engine
+        run: cmake -S . -B build/ci -DCMAKE_BUILD_TYPE=Release -DRICH4_BUILD_VIEWER=OFF -DRICH4_BUILD_GAME=OFF
+      - name: Compile native engine and tests
+        run: cmake --build build/ci --parallel 3
+      - name: Run complete synthetic test suite (no proprietary game assets)
+        run: ctest --test-dir build/ci --output-on-failure --parallel 3
