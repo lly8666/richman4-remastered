@@ -78,14 +78,15 @@ namespace {
 constexpr std::array<const char *, 12> spaced_names{"約 翰 喬", "沙隆巴斯", "忍 太 郎", "錢 夫 人",
                                                     "阿 土 伯", "莎拉公主", "宮本寶藏", "糖 糖",
                                                     "烏 咪",   "孫 小 美", "小 丹 尼", "金 貝 貝"};
-constexpr std::array<std::int32_t, 6> funds{300000, 200000, 100000, 50000, 30000, 10000};
+// MOD adds a seventh choice without removing any original starting fund.
+constexpr std::array<std::int32_t, 7> funds{30000000, 300000, 200000, 100000, 50000, 30000, 10000};
 constexpr std::array<const char *, 6> periods{"無限期", "二年", "一年", "六個月", "三個月", "一個月"};
 constexpr std::array<int, 6> victory_multipliers{0, 100, 50, 10, 5, 3};
 constexpr std::array<const char *, 6> setting_labels{"遊戲人數", "總 資 金", "行進方式",
                                                      "土地權限", "遊戲時間", "勝利條件"};
 // Drop-down list rectangles (0x46cc88, inclusive) and frames (0x46ccb8).
 constexpr std::array<graphics::Rect, 6> dropdown_rects{
-    {{561, 251, 602, 320}, {536, 287, 602, 425}, {561, 323, 602, 392},
+    {{561, 251, 602, 320}, {536, 264, 602, 425}, {561, 323, 602, 392},
      {536, 195, 602, 333}, {536, 231, 602, 369}, {516, 267, 602, 405}}};
 constexpr std::array<std::size_t, 6> dropdown_frames{5, 6, 5, 6, 6, 7};
 // Rows 4 and 5 (day limit, target wealth) have no NewGameOptions field or end rule natively.
@@ -93,7 +94,7 @@ constexpr bool row_supported(int row) {
     return row < 4;
 }
 int item_count(int row) {
-    return row == 0 || row == 2 ? 3 : 6;
+    return row == 0 || row == 2 ? 3 : row == 1 ? 7 : 6;
 }
 std::string item_label(int row, int index, int fund_index) {
     switch (row) {
@@ -257,6 +258,9 @@ void NewGameSetup::draw(Host &host, const std::function<void(const NewGameChoice
     if (dropdown_ >= 0) {
         const auto &list = dropdown_rects[std::size_t(dropdown_)];
         frame.picture('j', 8, dropdown_frames[std::size_t(dropdown_)], list.left, list.top);
+        if (dropdown_ == 1) // MOD's seventh option extends below the original six-row texture.
+            ui::fill(frame.canvas, {list.left, list.top + 138, list.right, list.bottom + 4},
+                     rgb(0xf0ead0));
         const int width = list.right - list.left;
         for (int n = 0; n < item_count(dropdown_); ++n) {
             const graphics::Rect item{list.left + 2, list.top + 2 + 23 * n, list.left + 2 + width - 3,
