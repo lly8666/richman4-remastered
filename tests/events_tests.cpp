@@ -283,10 +283,10 @@ void physical_and_inventory() {
     world.players[0].state.dice_count = 2;
     world.players[0].state.points = 65530;
     const auto initial_rng = random.state();
-    require(apply_fortune_id(world, random, 0, 32).supported && world.players[0].state.points == 469 &&
+    require(apply_fortune_id(world, random, 0, 32).supported && world.players[0].state.points == 65535 &&
                 world.tool_supply[4] == 3 && world.players[0].state.traffic_method == 0 &&
                 world.players[0].state.cards[0] == 0 && random.state() == initial_rng,
-            "Equipped transport converts to inventory before sale; points wrap16bit; fixed speech consumes "
+            "MOD: transport converts before sale; points saturate instead of wrapping; speech consumes "
             "no RNG");
     world = fixture();
     world.players[1].state.cards[0] = 4;
