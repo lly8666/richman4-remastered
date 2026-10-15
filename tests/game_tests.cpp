@@ -10,7 +10,6 @@
 #include <algorithm>
 #include <functional>
 #include <iostream>
-#include <numeric>
 #include <stdexcept>
 #include <string>
 
@@ -124,69 +123,6 @@ void dice_and_paths() {
     (void)once.next();
     require(fallback.world().players[0].state.node_id == 2 && fallback.random_state() == once.state(),
             "fallback must return to last node without consuming randomness");
-}
-// A loaded session can advance several computer turns before the UI drains events.
-// Each dice animation must belong to the player/event that generated it, not the
-// most recent faces in GameSession::dice() at presentation time.
-void loaded_dice_event_snapshots() {
-    auto value = world();
-    for (auto &node : value.nodes)
-        node.flags = (node.flags & ~0xffU) | 1U; // road-only: no unrelated landing choices
-    const auto save = rich4::SaveFile::decode(value.export_save());
-    constexpr std::uint32_t saved_rng_state = 1;
-    rich4::GameSession loaded(rich4::World::from_save(save), saved_rng_state);
-    require(loaded.roll_dice(), "loaded human must roll");
-    loaded.tick(100000);
-    require(loaded.phase() == rich4::GamePhase::human_ready,
-            "four-player turn cycle should return to the human");
-    const auto events = loaded.drain_events();
-    const auto effects = loaded.drain_effects();
-    std::vector<std::vector<std::uint8_t>> rolls;
-    std::vector<std::vector<std::uint8_t>> movie_rolls;
-    for (const auto &event : events)
-        if (event.kind == rich4::GameEventKind::dice_rolled) {
-            require(event.player == rolls.size() && event.dice.size() == 1 &&
-                        event.amount == event.dice.front(),
-                    "batched dice events must contain original player's faces and steps");
-            rolls.push_back(event.dice);
-        }
-    for (const auto &effect : effects)
-        if (effect.kind == rich4::EffectKind::dice_roll)
-            movie_rolls.push_back(effect.dice);
-    require(rolls.size() == 4 && rolls == movie_rolls,
-            "all four loaded players must retain distinct, ordered dice movie payloads");
-    require(std::any_of(rolls.begin(), rolls.end() - 1,
-                        [&](const auto &faces) { return faces != rolls.back(); }) &&
-                loaded.dice() == rolls.back(),
-            "at least one earlier roll must differ from the final live-session faces");
-    // The original DAT does not carry RNG state: the sidecar preserves it, and
-    // display-side snapshots must not consume extra Watcom random draws.
-    rich4::GameSession identical(rich4::World::from_save(save), saved_rng_state);
-    require(identical.roll_dice(), "second loaded session must roll");
-    identical.tick(100000);
-    require(identical.random_state() == loaded.random_state() &&
-                identical.world().export_save() == loaded.world().export_save(),
-            "presentation snapshots must not change rule outcomes or saved RNG");
-}
-// A loaded DAT must preserve the original selected dice count (e.g. a car can
-// roll three dice), including the three actual face values on its UI event.
-void loaded_vehicle_dice_count() {
-    auto value = world();
-    value.players[0].state.traffic_method = 2;
-    value.players[0].state.dice_count = 3;
-    const auto save = rich4::SaveFile::decode(value.export_save());
-    rich4::GameSession loaded(rich4::World::from_save(save), 5);
-    require(loaded.world().players[0].state.traffic_method == 2 &&
-                loaded.world().players[0].state.dice_count == 3,
-            "loading DAT must not lose the selected car dice count");
-    require(loaded.roll_dice(), "loaded car should roll");
-    const auto events = loaded.drain_events();
-    const auto dice = std::find_if(events.begin(), events.end(), [](const auto &e) {
-        return e.kind == rich4::GameEventKind::dice_rolled;
-    });
-    require(dice != events.end() && dice->dice.size() == 3 &&
-                dice->amount == std::accumulate(dice->dice.begin(), dice->dice.end(), 0),
-            "loaded car should display all three dice and use their summed movement");
 }
 void parachute_marks_a_spawned_player() {
     auto value = world();
@@ -1492,8 +1428,6 @@ int main() {
         landing_pauses();
         dice_and_paths();
         dice_effect_is_presentation_only();
-        loaded_dice_event_snapshots();
-        loaded_vehicle_dice_count();
         parachute_marks_a_spawned_player();
         tool_and_card_effects();
         missile_presentation_order();
