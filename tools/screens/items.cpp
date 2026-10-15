@@ -157,8 +157,12 @@ std::vector<unsigned> tools_on_grid(Frame &frame, const PlayerState &player, int
         const int tile = int(order.size());
         const int c = tile % 5, r = tile / 5;
         keyed(frame, art(frame, 'p', 11, id + 1), x + 29 + 80 * c, y + 33 + 56 * r);
-        top_right(frame, "×" + std::to_string(player.tool_amounts[id - 1]), x + 79 + 80 * c, y + 23 + 56 * r, 20,
-                  white);
+        const auto amount = player.tool_amounts[id - 1];
+        // MOD: "×999" can cover the entire tool sprite at the original 20px
+        // inventory-count anchor. Keep classic <=9 counts unchanged; put wide
+        // counts on the lower edge in a smaller font, clear of the icon.
+        top_right(frame, "×" + std::to_string(amount), x + 79 + 80 * c,
+                  y + (amount >= 10 ? 39 : 23) + 56 * r, amount >= 10 ? 14 : 20, white);
         order.push_back(id);
     }
     return order;
