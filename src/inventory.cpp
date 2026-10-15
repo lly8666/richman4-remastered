@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Reconstructed from original Rich4 card/tool routines; see migration 005.
 #include "rich4/inventory.hpp"
+#include "rich4/mod_rules.hpp"
 
 #include <algorithm>
 #include <cstring>
@@ -116,7 +117,7 @@ std::uint32_t sell_all_cards(CardSlots &cards, CardSupply &supply, const CardPri
 
 bool receive_tool(ToolAmounts &amounts, ToolSupply &supply, std::uint8_t tool_id) {
     const auto index = tool_index(tool_id);
-    if (amounts[index] >= 9)
+    if (amounts[index] >= mod::max_tool_amount)
         return false;
     if (index < supply.size()) {
         if (supply[index] == 0)
