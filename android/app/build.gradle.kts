@@ -13,12 +13,12 @@ android {
     ndkVersion = "28.2.13676358"
 
     defaultConfig {
-        applicationId = "io.divby0.rich4"
+        applicationId = "io.divby0.rich4.mod"
         minSdk = 28 // bionic iconv/libc baseline; Big5 itself comes from bundled GNU libiconv
         targetSdk = 36
         // Sideload-only spike. Play rule: plain integer, +1 per upload, never derived.
         versionCode = 1
-        versionName = "0.1.0"
+        versionName = "0.1.0-MOD"
         ndk { abiFilters += "arm64-v8a" }
         externalNativeBuild {
             cmake {
