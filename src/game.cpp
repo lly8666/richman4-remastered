@@ -3127,7 +3127,16 @@ struct GameSession::Impl {
         callbacks.hospital = [this](auto slot, auto duration) {
             add_confinement(slot, static_cast<int>(duration), true);
         };
-        callbacks.upgrade = [this](auto property) { change_building(property, true); };
+        callbacks.upgrade = [this](auto property) {
+            // rich4_magic_house.asm:421 calls the same rising-building Data 553
+            // movie as the robot worker: the board commits only at frame 44.
+            const auto previous = property_appearance(property);
+            const auto before = property_level(property);
+            change_building(property, true);
+            effect(EffectKind::build_rise, actor(), property_point(property), property);
+            effect_before_property(effects.back(), previous);
+            sparkle_if_top_floor(property, before);
+        };
         callbacks.downgrade = [this](auto property) { change_building(property, false); };
         callbacks.turn_around = [this](auto slot) { turn_around(slot); };
         callbacks.auction = [this](auto property, auto seller) {
