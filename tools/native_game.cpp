@@ -16,6 +16,7 @@
 #include "rich4/calendar.hpp"
 #include "rich4/direction.hpp"
 #include "rich4/game.hpp"
+#include "rich4/random.hpp"
 #include "rich4/services.hpp"
 #include "rich4/stocks.hpp"
 #include "rich4/trading.hpp"
@@ -1038,11 +1039,24 @@ class Application {
         try {
             const auto bytes = ui::read_file(path);
             auto seed = options_.seed;
-            std::ifstream state(path.string() + ".rng");
-            std::string signature;
-            std::uint32_t stored_seed = 0;
-            if (state >> signature >> stored_seed && signature == "RICH4-RNG-1")
-                seed = stored_seed;
+            if (options_.headless || options_.auto_rounds) {
+                // Deterministic automation/replays keep the previous native RNG
+                // sidecar contract so acceptance tests reproduce exact turns.
+                std::ifstream state(path.string() + ".rng");
+                std::string signature;
+                std::uint32_t stored_seed = 0;
+                if (state >> signature >> stored_seed && signature == "RICH4-RNG-1")
+                    seed = stored_seed;
+            } else {
+                // Original save_load.asm reseeds with Windows GetTickCount()
+                // after loading. DAT never stores the CRT RNG state; replaying
+                // our .rng sidecar on every manual reload made the NEXT dice
+                // identical on every load. Use a monotonic system clock, not
+                // seconds-since-epoch or milliseconds since app startup.
+                const auto uptime_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::steady_clock::now().time_since_epoch()).count();
+                seed = load_seeds_.next(static_cast<std::uint32_t>(uptime_ms));
+            }
             install_session(World::from_save(SaveFile::decode(bytes)), seed);
             audio_->select_music(0); // AUDIO: loading moves on to the next playlist track (save_load.asm:978)
             music_director_.forget();
@@ -3330,6 +3344,7 @@ class Application {
     std::set<std::pair<std::size_t, std::size_t>> test_trade_attempts_;
     bool test_trade_acted_ = false;
     std::optional<std::uint32_t> initial_random_state_;
+    LoadSeedSequence load_seeds_; // interactive loads intentionally do not replay the .rng sidecar
     board::Camera current_camera_{};
     std::optional<native::tile_popup::Popup> tile_popup_; // shown until the next tap
     std::optional<board::Point> target_center_;
