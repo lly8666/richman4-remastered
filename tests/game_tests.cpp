@@ -1016,6 +1016,37 @@ void native_actions_and_money_spinner() {
     for (const auto &event : god.drain_events())
         require(event.kind != rich4::GameEventKind::unsupported_event, "god emitted unsupported rule");
 }
+// The core commits a new god's inventory immediately, but all UI effects
+// must be queued in the original sequence: movie -> caption -> card-name box.
+// Replaying the event must never spend more random numbers.
+void god_card_arrival_presentation_order() {
+    auto value = world();
+    value.card_supply.fill(3);
+    value.objects[2].kind = 3; // small fortune god, stored at object ID 3
+    value.objects[2].node_id = 2;
+    value.nodes[2].flags |= 3U << 16U;
+    rich4::GameSession gift(value, 0);
+    first_landing(gift);
+    const auto events = gift.drain_events();
+    const auto effects = gift.drain_effects();
+    const auto movie = std::find_if(effects.begin(), effects.end(), [](const auto &effect) {
+        return effect.kind == rich4::EffectKind::god_appear;
+    });
+    const auto caption = std::find_if(events.begin(), events.end(), [](const auto &event) {
+        return event.announcement == rich4::Announcement::god_arrival;
+    });
+    const auto reward = std::find_if(events.begin(), events.end(), [](const auto &event) {
+        return event.announcement == rich4::Announcement::god_inventory;
+    });
+    require(movie != effects.end() && movie->object_kind == 3 &&
+                caption != events.end() && caption->announcement_id == 3 &&
+                reward != events.end() && reward->announcement_id == 3 &&
+                movie->after_events <= std::size_t(caption - events.begin()) &&
+                caption < reward && reward->value >= 1 && reward->value <= 30,
+            "fortune-god FLC must precede its caption and named card-reward box");
+    require(gift.world().players[0].state.cards[0] == reward->value,
+            "displayed reward card must be the card actually added to the player's bag");
+}
 void loan_and_free_toll() {
     auto value = world();
     for (auto &node : value.nodes)
@@ -1517,6 +1548,7 @@ int main() {
         service_and_auction_choices();
         god_spinner_presentation_order();
         native_actions_and_money_spinner();
+        god_card_arrival_presentation_order();
         loan_and_free_toll();
         special_financing();
         computer_atm_financing();
