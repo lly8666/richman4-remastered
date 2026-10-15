@@ -333,7 +333,7 @@ bool apply_magic(World &world, Random &random, std::size_t actor, std::span<cons
             const auto transport = player.state.traffic_method & 3U;
             if (transport) {
                 const auto index = transport == 1 ? 4U : transport == 2 ? 5U : 11U;
-                ++player.state.tool_amounts[index];
+                mod::grant_equipped_tool(player.state.tool_amounts[index]);
             }
             player.state.traffic_method = 0;
             player.state.dice_count = 1;
