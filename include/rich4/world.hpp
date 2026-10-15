@@ -253,6 +253,9 @@ class World {
     [[nodiscard]] bool has_initial_random_state() const noexcept {
         return random_state_available_;
     }
+    [[nodiscard]] bool loaded_from_original_data() const noexcept {
+        return !backing_.empty();
+    }
     // Known fields are patched into the retained original bytes. Unknown fields,
     // historical snapshots and trailing bytes are preserved. Resizing is rejected.
     [[nodiscard]] std::vector<std::uint8_t> export_save() const;
