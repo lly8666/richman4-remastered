@@ -1500,6 +1500,23 @@ class Application {
         spinner_ticks_ = now;
         return options_.auto_rounds ? 40U : elapsed;
     }
+    std::optional<std::size_t> god_waiting_for_entrance() const {
+        // The core has already marked the new god as carried. The original
+        // displays its entrance FLC, then the overlaid 2400ms caption, and only
+        // after those pictures shows the carried sprite on the normal board.
+        for (const auto &step : presentation_) {
+            if (step.effect && step.effect->kind == EffectKind::god_appear)
+                return step.effect->player;
+            if (step.event && step.event->announcement == Announcement::god_arrival)
+                return step.event->player;
+        }
+        if (const auto slot = effects_.arriving_god_player())
+            return slot;
+        const auto *shown = messages_.current();
+        if (shown && shown->kind == messages::Item::Kind::god_caption)
+            return shown->focus;
+        return std::nullopt;
+    }
     void draw_board() {
         const auto &world = session_->world();
         sync_decision();
@@ -1574,7 +1591,7 @@ class Application {
         // worker/monster/demolition movie, even while an earlier bubble is shown.
         std::vector<EffectEvent> future_building_effects;
         for (const auto &step : presentation_)
-            if (step.effect && step.effect->has_previous_property)
+            if (step.effect && (step.effect->has_previous_property || step.effect->kind == EffectKind::god_appear))
                 future_building_effects.push_back(*step.effect);
         effects_.set_future_effects(std::move(future_building_effects));
         for (auto step = presentation_.rbegin(); step != presentation_.rend(); ++step) {
@@ -1619,7 +1636,8 @@ class Application {
         }
         board::Camera camera{center, static_cast<std::uint8_t>(rotation_)};
         current_camera_ = camera;
-        auto objects = native::object_sprites(world, players, static_cast<std::uint8_t>((SDL_GetTicks() / 120) % 6));
+        auto objects = native::object_sprites(world, players, static_cast<std::uint8_t>((SDL_GetTicks() / 120) % 6),
+                                              god_waiting_for_entrance());
         native::hide_objects(objects, [this](board::Point node, std::uint8_t kind) { // EFFECTS: throws in flight
             if (effects_.throw_pending(node, kind))
                 return true;
