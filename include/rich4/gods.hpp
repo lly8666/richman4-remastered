@@ -19,6 +19,12 @@ struct Callbacks {
     std::function<std::uint32_t(std::uint16_t)> upgrade_property; // Original40b110 result bits.
     std::function<void(std::uint16_t)> downgrade_property;
     std::function<void(std::size_t, std::size_t, std::int32_t)> hostility;
+    // Original god effects display card-name result boxes after the appearance
+    // movie and arrival caption. arg1/arg2 are awarded/lost card IDs (0 if
+    // absent), removed is number of cards discarded by half/all effects.
+    // Pure presentation: must not consume RNG or change the original inventory.
+    std::function<void(std::size_t, std::uint8_t, std::uint8_t, std::uint8_t, unsigned)>
+        cards_changed;
     // Optional, presentation only: the god (kind) just attached to the player, before its effect
     // runs (rich4_gods.asm:472 plays the appearance FLC here). Must not draw randomness.
     std::function<void(std::size_t, std::uint8_t)> appeared;
