@@ -141,6 +141,7 @@ enum class Announcement : std::uint8_t {
     news,              // Full-screen news: id 0..35 plus body arguments.
     fortune,           // Full-screen fortune: id 0..48 plus body arguments.
     god_arrival,       // God attached: id = object kind (1..10, 12, 15).
+    god_inventory,     // Post-arrival god card reward/loss box: id=kind, value/cards, amount=count.
     point_coupon,      // "得點券N點" box (1000 ms): amount 10/30/50.
     absent_status,     // Turn-start "%s坐牢中\n\n還剩%d天！" box: id 0 hotel, 1 away, 2 prison,
                        // 3 hospital, 4 hibernating; value = days left.
