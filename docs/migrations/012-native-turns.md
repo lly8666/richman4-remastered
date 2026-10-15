@@ -68,21 +68,6 @@ The integrated session connects ordinary and primary stock trading, original dai
 
 Commercial properties now resolve their original travel, insurance, periodic charge, transport, construction and primary-stock branches. Construction invokes the same building helper as magic and events. Ordinary and facility tolls support free-toll cards, frame cards and the original death-object redirection predicate (literal object IDs 14/15); nested decisions replay the whole payment transaction. Alliance street sharing now follows the separate owner/partner calculations and payment sequence described below.
 
-**2026-10-15 讀檔後骰面顯示修復：** `Random::next()` 仍依 Watcom CRT LCG
-`state = state * 1103515245 + 12345`, 對每顆骰子取 `(state>>16)&0x7fff` 並
-`%6+1`，每顆骰與地圖選路都會推進狀態。原始 DAT **不保存 RNG 狀態**；
-Android/桌面 Native 的 `Save*.DAT.rng` 旁檔保存現在的 RNG 狀態，沒有旁檔（例如
-匯入 Windows DAT）則使用啟動時種子；這不等同於原版每天 `GetTickCount()` 重種。
-
-發現真正的畫面混淆原因：`MainScreen::on_event(dice_rolled)` 原本讀取
-`GameSession::dice()`（最後一次骰面），但同一 `tick()` 可能已計算數個電腦回合，
-因此多個玩家/回合的舊事件重播時看起來都骰出相同的結果。
-現在 `GameEvent::dice` 在 `begin_roll()` 就存下自己的面值，MainScreen 只使用
-此快照，且不額外消耗 RNG。測試 `loaded_dice_event_snapshots` 驗證從 DAT 建立
-session 後四人連續擲骰，每一個事件的骰面與其獨立動畫一致、總步數一致，且
-前面玩家結果不會變成最後玩家結果；`loaded_vehicle_dice_count` 確認載入 DAT
-後汽車的三顆骰子數量和加總保持不變。此 UI 修正不改存檔格式或規則。
-
 Human-ready `use_card`, `use_tool`, `dismount`, `buy_stock` and `sell_stock` APIs share the same world. Logical and viewport target selection live in the core. Decision options can carry a world coordinate so the application can show their actual locations. Card and tool cancellation leaves inventory unchanged. Active card effects delegate to migration 020; tools to migration 021. Computer action selection delegates to migrations 024/025 and stock trading to migration 029, preserving each module's internal random-call gates.
 
 Fresh setup continues the factory's 73 deck-shuffle draws, places object kinds 1/3/5/7/9/11/13/14 using the original free-node selector, then refreshes stock quotas before the first player turn. Movement synchronizes attached-object node IDs. Object encounters and property god effects call migration 026's original-derived god module. Human monetary gods use its decimal spinner: one tick per 30 ms, Stop input, then the original deceleration. Choice replay records both the final amount and final RNG state; rollback cannot duplicate gifts or random consumption.
