@@ -30,6 +30,7 @@ enum class DecisionKind {
     buy_facility,
     construct_facility,
     upgrade_facility,
+    research_tool, // research institute: choose the level-unlocked tool (9..13)
     roulette,
     shop,
     magic_category,
