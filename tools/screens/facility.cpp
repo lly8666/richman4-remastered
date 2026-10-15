@@ -34,7 +34,7 @@ std::optional<std::size_t> cancel_option(const GameDecision &decision) {
 } // namespace
 
 bool handles(const GameDecision &decision) {
-    if (decision.kind == DecisionKind::construct_facility)
+    if (decision.kind == DecisionKind::research_tool || decision.kind == DecisionKind::construct_facility)
         return true;
     return decision.kind == DecisionKind::action_target && decision.prompt == prompt &&
            std::all_of(decision.options.begin(), decision.options.end(),
@@ -59,6 +59,61 @@ void Picker::draw(screens::Host &host, const GameDecision &decision, const std::
     if (key != key_) {
         key_ = key;
         selected_.reset();
+    }
+    if (decision.kind == DecisionKind::research_tool) {
+        // Same original-art selection flow as building on a large lot: Data 517:5 message
+        // board, a row of five icon slots, yellow triple-outline selection and Effect 0/1.
+        // The original tool inventory is Panel 11:1 with icons at Panel 11:(tool_id+1).
+        // This deliberately avoids a separate native-styled modal on mobile.
+        graphics::blit(frame.canvas, frame.artwork.frame('d', 517, 5), 220, 140);
+        messages::draw_text(frame, "請選擇研發道具", 220, 122, 2, box_style);
+        constexpr int tray_x = 14, tray_y = 279;
+        graphics::blit(frame.canvas, frame.artwork.frame('p', 11, 1), tray_x, tray_y,
+                       graphics::Transparency::opaque);
+        for (int slot = 0; slot < 5; ++slot) {
+            const auto index = option_with_value(decision, 9 + slot);
+            const int x = tray_x + 6 + slot * 80, y = tray_y + 6;
+            const graphics::Rect cell{x, y, x + 78, y + 54};
+            graphics::blit(frame.canvas, frame.artwork.frame('p', 11, std::size_t(10 + slot)),
+                           tray_x + 29 + slot * 80, tray_y + 33);
+            if (!index) {
+                screens::darken(frame.canvas, cell, -16); // higher-level tools are visible but locked
+                continue;
+            }
+            if (selected_ == slot)
+                for (int inset = 0; inset < 3; ++inset)
+                    screens::outline_rect(frame.canvas,
+                                          {x + inset, y + inset, cell.right - inset, cell.bottom - inset},
+                                          screens::rgb(0xffff00));
+            const bool chosen = selected_ == slot;
+            screens::hit(host, 210 + int(*index), cell, chosen ? screens::click_sound : screens::hover_sound,
+                         [this, chosen, slot, index = *index, respond] {
+                             if (chosen)
+                                 respond(index);
+                             else
+                                 selected_ = slot;
+                         });
+        }
+        const auto selected_index = selected_ ? option_with_value(decision, 9 + *selected_) : std::nullopt;
+        if (selected_index)
+            messages::draw_text(frame, decision.options[*selected_index].label, 220, 154, 4, box_style);
+        const graphics::Rect confirm_rect{124, 386, 252, 426};
+        frame.button(confirm_button, confirm_rect, "確定", [] {}, selected_index.has_value());
+        frame.buttons.pop_back();
+        screens::hit(host, confirm_button, confirm_rect, screens::click_sound,
+                     [respond, selected_index] {
+                         if (selected_index)
+                             respond(*selected_index);
+                     },
+                     selected_index.has_value());
+        if (const auto postpone = option_with_value(decision, 0)) {
+            const graphics::Rect postpone_rect{266, 386, 414, 426};
+            frame.button(210 + int(*postpone), postpone_rect, "稍後研究", [] {});
+            frame.buttons.pop_back();
+            screens::hit(host, 210 + int(*postpone), postpone_rect, screens::cancel_sound,
+                         [respond, index = *postpone] { respond(index); });
+        }
+        return;
     }
     // fcn_00440aac: box Data 517:5 (transparent) at (220,140), prompt mode 2 at (220,122); the strip
     // Data 517:4 opaque at (43,279). Slot i (facility type i) covers x 50+68i, y 286, 68x68.
