@@ -339,7 +339,8 @@ Result after_property(World &world, std::size_t actor, std::uint16_t node, const
     auto &player = world.players.at(actor);
     if (player.status.days_in_hotel || !player.state.controller_flags)
         return {};
-    const auto god = player.status.god_info;
+    const auto god_id = player.status.god_info;
+    const auto god = god_id && god_id <= world.objects.size() ? world.objects[god_id - 1].kind : 0;
     if (god != 9 && god != 10 && god != 12)
         return {};
     const auto code = world.nodes.at(node).type_and_index;
@@ -404,7 +405,8 @@ Result after_property(World &world, std::size_t actor, std::uint16_t node, const
 
 Result after_successful_purchase(World &world, Random &random, std::size_t actor, std::uint16_t node,
                                  const Callbacks &callbacks) {
-    const auto god = world.players.at(actor).status.god_info;
+    const auto god_id = world.players.at(actor).status.god_info;
+    const auto god = god_id && god_id <= world.objects.size() ? world.objects[god_id - 1].kind : 0;
     if (god != 3 && god != 4)
         return {};
     if (!callbacks.upgrade_property)
