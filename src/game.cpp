@@ -3845,8 +3845,11 @@ bool GameSession::use_tool(unsigned id, std::uint16_t target, std::uint16_t dest
     if (impl_->phase != GamePhase::human_ready || id < 1 || id > 13 || !impl_->player().tool_amounts[id - 1])
         return false;
     impl_->last_action_accepted = true;
+    // A self-teleport uses up the normal roll and settles the arrival tile.
+    // Capture the actual moved player: selecting an attached object can redirect to its carrier.
+    const auto teleported_self = std::make_shared<bool>(false);
     impl_->run_rule(
-        [this, id, target, destination] {
+        [this, id, target, destination, teleported_self] {
             auto chosen = target, finish = destination;
             if ((tools::selection_flags(id) != 0 || id == 8) && !chosen)
                 chosen = impl_->choose_tool_target(id, 0);
@@ -3874,8 +3877,17 @@ bool GameSession::use_tool(unsigned id, std::uint16_t target, std::uint16_t dest
                     return;
                 }
             }
+            auto callbacks = impl_->tool_callbacks();
+            if (id == 11) {
+                auto original = std::move(callbacks.before_teleport);
+                callbacks.before_teleport = [original = std::move(original), teleported_self](std::size_t slot) {
+                    *teleported_self = true;
+                    if (original)
+                        original(slot); // Keep pre-teleport time-machine history and status reset.
+                };
+            }
             const auto result = tools::use(impl_->world, impl_->random, impl_->actor(), id, chosen, finish,
-                                           impl_->tool_callbacks());
+                                           callbacks);
             impl_->last_action_accepted = result.applied;
             if (!result.supported)
                 throw UnsupportedRule{result.message};
@@ -3884,7 +3896,15 @@ bool GameSession::use_tool(unsigned id, std::uint16_t target, std::uint16_t dest
                 impl_->emit(GameEventKind::notice, "使用" + std::string(services::tool_names.at(id - 1)));
             }
         },
-        true, false);
+        true, false,
+        [this, teleported_self] {
+            if (!*teleported_self || !impl_->last_action_accepted || impl_->phase != GamePhase::human_ready)
+                return;
+            // Apply the normal destination landing instead of a new die roll.
+            // Shop/bank and property decisions finish the turn through their normal handlers.
+            impl_->remaining = 0;
+            impl_->land();
+        });
     return impl_->last_action_accepted || impl_->phase == GamePhase::awaiting_decision;
 }
 bool GameSession::dismount() {
