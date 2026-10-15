@@ -188,7 +188,9 @@ PurchaseResult buy_stock(World &world, std::size_t player, std::size_t stock, st
         cost = static_cast<std::int32_t>(value);
     }
     const auto previous_cost = sale_proceeds(std::bit_cast<float>(holding.raw_cost_basis), holding.amount);
-    const auto total_cost = add_wrap(previous_cost, cost);
+    if (previous_cost < 0 || std::int64_t(previous_cost) + cost > INT32_MAX)
+        throw std::invalid_argument("MOD stock cost basis exceeds the 32-bit save money range");
+    const auto total_cost = previous_cost + cost;
     const auto new_quantity = holding.amount + amount;
     const auto basis = (Extended::from(total_cost) / Extended::from(new_quantity)).single();
     if (from_market) {
@@ -215,6 +217,13 @@ SaleResult sell_stock(World &world, std::size_t player, std::size_t stock, std::
     }
     auto &company = world.stocks[stock];
     const auto proceeds = sale_proceeds(std::bit_cast<float>(company.float_bits[2]), amount);
+    if (proceeds < 0 || (credit_bank
+            ? std::int64_t(world.players[player].state.bank_balance) + proceeds > INT32_MAX
+            : std::int64_t(world.public_fund) + proceeds > INT32_MAX))
+        throw std::invalid_argument("MOD stock sale exceeds the 32-bit balance capacity");
+    if (std::uint64_t(company.shares_available) + unsigned(amount) > UINT16_MAX ||
+        std::uint64_t(company.flags_10) + unsigned(amount) > UINT16_MAX)
+        throw std::invalid_argument("MOD stock sale exceeds the 16-bit supply capacity");
     auto *commercial = linked_commercial(world, stock);
     holding.amount -= amount;
     if (holding.amount == 0) {
@@ -262,9 +271,8 @@ std::int32_t player_wealth(const World &world, std::size_t player) {
         throw std::out_of_range("wealth player index out of range");
     }
     const auto &account = world.players[player];
-    auto total = add_wrap(account.state.cash, account.state.bank_balance);
-    total = std::bit_cast<std::int32_t>(std::bit_cast<std::uint32_t>(total) -
-                                        std::bit_cast<std::uint32_t>(account.state.loan));
+    const auto initial = std::int64_t(account.state.cash) + account.state.bank_balance - account.state.loan;
+    auto total = static_cast<std::int32_t>(std::clamp(initial, std::int64_t(INT32_MIN), std::int64_t(INT32_MAX)));
     for (std::size_t stock = 0; stock < world.stocks.size(); ++stock) {
         const auto quote = std::bit_cast<float>(world.stocks[stock].float_bits[2]);
         const auto amount = account.stocks[stock].amount;
@@ -278,7 +286,7 @@ std::int32_t player_wealth(const World &world, std::size_t player) {
         const auto exponent = (raw >> 23) & 255U;
         const auto significand = (raw & 0x7fffffU) | (exponent == 0 ? 0 : 0x800000U);
         const auto product = std::uint64_t(significand) * static_cast<std::uint32_t>(amount);
-        // Market quotes [1,10000] have 10..23 fraction bits. The integer product
+        // Market quotes [1,999999] have 4..23 fraction bits. The integer product
         // is exact; split it so cancellation with negative wealth is also exact.
         const unsigned fraction_bits = quote == 0 ? 23U : 150U - exponent;
         const auto integer = product >> fraction_bits;
@@ -287,20 +295,24 @@ std::int32_t player_wealth(const World &world, std::size_t player) {
         if (sum < 0 && fraction) {
             ++sum; // Truncate the negative fractional sum toward zero.
         }
-        total = sum < INT32_MIN || sum > INT32_MAX ? INT32_MIN : static_cast<std::int32_t>(sum);
+        total = static_cast<std::int32_t>(std::clamp(sum, std::int64_t(INT32_MIN), std::int64_t(INT32_MAX)));
     }
     const auto owner = player + 1;
     for (std::size_t id = 1; id < world.lands.size(); ++id) {
         const auto &land = world.lands[id];
         if (land.economy.owner_code == owner) {
             const auto levels = land.economy.chain_store != 0 ? 1 : land.economy.level;
-            total = add_wrap(total, land.land_price + land.price_per_level * levels);
+            total = static_cast<std::int32_t>(std::clamp(
+                std::int64_t(total) + land.land_price + land.price_per_level * levels,
+                std::int64_t(INT32_MIN), std::int64_t(INT32_MAX)));
         }
     }
     for (std::size_t id = 1; id < world.facilities.size(); ++id) {
         const auto &facility = world.facilities[id];
         if (facility.owner_code == owner) {
-            total = add_wrap(total, facility.land_price + facility.price_per_level() * facility.level);
+            total = static_cast<std::int32_t>(std::clamp(
+                std::int64_t(total) + facility.land_price + facility.price_per_level() * facility.level,
+                std::int64_t(INT32_MIN), std::int64_t(INT32_MAX)));
         }
     }
     return total;
