@@ -866,7 +866,7 @@ EventResult apply_fortune_id(World &world, Random &random, std::size_t actor, st
         }
         auto points = sell_stored_tools(player.state.tool_amounts, world.tool_supply, tool_prices);
         points += sell_all_cards(player.state.cards, world.card_supply, card_prices);
-        player.state.points = static_cast<std::uint16_t>(player.state.points + points);
+        mod::credit_points(player.state.points, points);
         voice(callbacks, actor, 3);
         return done(id, "命运：卡片与道具全部变卖为点数");
     }
