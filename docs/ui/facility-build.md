@@ -62,6 +62,9 @@ through a separate native-looking rectangular dialog.
 - **Touch:** first tap selects a 78×54 icon cell, displaying the same three nested yellow
   frames as construction. Second tap commits; the 確定 button also commits. 稍後研究
   submits the existing core value `0`; Android Back has the same postpone behavior.
+  The touch-only 確定 and 稍後研究 buttons are in the right sidebar
+  (x=458–604, y=305–350 / 367–412). They formerly overlapped rows 2–3 of the
+  original tool tray (x=14–426, y=279–459), hiding sprites underneath.
 - **Reset:** a new/finished decision clears the shared selection even when two research
   prompts have identical text and available tools.
 - **Regression pictures:** `--overlay-gallery` writes
