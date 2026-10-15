@@ -144,6 +144,15 @@ struct GameSession::Impl {
     const PlayerStatus &status() const {
         return world.players[actor()].status;
     }
+    // god_info is an OBJECT ID, not its kind; use the attached record for every
+    // gameplay check (especially 土地公 on a player's own plot).
+    std::uint8_t god_kind(std::size_t slot) const {
+        if (slot >= world.players.size())
+            return 0;
+        const auto id = world.players[slot].status.god_info;
+        return id && id <= world.objects.size() ? world.objects[id - 1].kind : 0;
+    }
+    std::uint8_t god_kind() const { return god_kind(actor()); }
     void emit(GameEventKind kind, std::string message, std::int32_t amount = 0) {
         events.push_back({kind, actor(), amount, player().node_id, std::move(message)});
     }
@@ -890,11 +899,11 @@ struct GameSession::Impl {
         auto &land = world.lands[land_id];
         auto &economy = land.economy;
         if (!economy.owner_code || economy.owner_code == actor() + 1) {
-            if (status().days_sleep_walking || status().god_info == 12) {
+            if (status().days_sleep_walking || (!economy.owner_code && god_kind() == 12)) {
                 finish_turn();
                 return;
             }
-            if (status().god_info == 7 || status().god_info == 8 || status().god_info == 15) {
+            if (god_kind() == 7 || god_kind() == 8 || god_kind() == 15) {
                 emit(GameEventKind::notice, "神明阻止这次房产交易");
                 finish_turn();
                 return;
@@ -938,7 +947,7 @@ struct GameSession::Impl {
             return;
         }
         const auto &owner_status = world.players[owner].status;
-        if (owner_status.allied_player == actor() + 1 || owner_status.god_info == 15 ||
+        if (owner_status.allied_player == actor() + 1 || god_kind(owner) == 15 ||
             owner_status.days_in_hotel || owner_status.days_disappearing || owner_status.days_in_prison ||
             owner_status.days_in_hospital || owner_status.days_sleeping || owner_status.days_sleep_walking ||
             ((land.temporary_state & 0xf0U) && (land.temporary_state & 0x0fU))) {
@@ -961,13 +970,13 @@ struct GameSession::Impl {
         const float ally_ratio =
             ally_code && toll ? (numeric::Extended::from(ally_toll) / numeric::Extended::from(toll)).single()
                               : 0.0F;
-        if (status().god_info == 1)
+        if (god_kind() == 1)
             toll >>= 1;
-        else if (status().god_info == 2)
+        else if (god_kind() == 2)
             toll = 0;
-        else if (status().god_info == 5)
+        else if (god_kind() == 5)
             toll = add32(toll, toll >> 1);
-        else if (status().god_info == 6)
+        else if (god_kind() == 6)
             toll = multiply32(toll, 2);
         if (!toll) {
             finish_turn();
@@ -995,7 +1004,7 @@ struct GameSession::Impl {
     }
 
     bool transaction_blocked() const {
-        return status().god_info == 7 || status().god_info == 8 || status().god_info == 15;
+        return god_kind() == 7 || god_kind() == 8 || god_kind() == 15;
     }
     bool ai_can_purchase(std::int32_t cost) const {
         const auto reserve =
@@ -1102,13 +1111,13 @@ struct GameSession::Impl {
             if (facility.temporary_state)
                 toll = multiply32(toll, 2);
         }
-        if (status().god_info == 1)
+        if (god_kind() == 1)
             toll >>= 1;
-        else if (status().god_info == 2)
+        else if (god_kind() == 2)
             toll = 0;
-        else if (status().god_info == 5)
+        else if (god_kind() == 5)
             toll = add32(toll, toll >> 1);
-        else if (status().god_info == 6)
+        else if (god_kind() == 6)
             toll = multiply32(toll, 2);
         if (!toll)
             return;
@@ -1149,7 +1158,7 @@ struct GameSession::Impl {
         }
         auto &entry = world.facilities[id];
         if (!entry.owner_code || entry.owner_code == actor() + 1) {
-            if (status().days_sleep_walking || (!entry.owner_code && status().god_info == 12)) {
+            if (status().days_sleep_walking || (!entry.owner_code && god_kind() == 12)) {
                 finish_turn();
                 return;
             }
@@ -1208,7 +1217,7 @@ struct GameSession::Impl {
             return;
         }
         const auto &owner = world.players[entry.owner_code - 1].status;
-        if (owner.allied_player == actor() + 1 || owner.god_info == 15 || owner.days_in_hotel ||
+        if (owner.allied_player == actor() + 1 || god_kind(entry.owner_code - 1U) == 15 || owner.days_in_hotel ||
             owner.days_disappearing || owner.days_in_prison || owner.days_in_hospital ||
             owner.days_sleeping || owner.days_sleep_walking ||
             ((entry.temporary_state & 0xf0U) && (entry.temporary_state & 0x0fU))) {
@@ -1488,13 +1497,13 @@ struct GameSession::Impl {
                     }
                 }
             }
-            if (status().god_info == 1)
+            if (god_kind() == 1)
                 toll >>= 1;
-            else if (status().god_info == 2)
+            else if (god_kind() == 2)
                 toll = 0;
-            else if (status().god_info == 5)
+            else if (god_kind() == 5)
                 toll = add32(toll, toll >> 1);
-            else if (status().god_info == 6)
+            else if (god_kind() == 6)
                 toll = multiply32(toll, 2);
             const auto payer = select_toll_payer(toll, -1, absence != 0);
             if (payer == actor())
@@ -1614,7 +1623,7 @@ struct GameSession::Impl {
         if (requested || compulsory_absence)
             for (std::size_t i = 0; i < world.players.size(); ++i)
                 if (i != payer && world.players[i].state.controller_flags &&
-                    (world.players[i].status.god_info == 14 || world.players[i].status.god_info == 15)) {
+                    (god_kind(i) == 14 || god_kind(i) == 15)) {
                     payer = i;
                     break;
                 }
