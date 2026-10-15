@@ -10,7 +10,7 @@ namespace rich4 {
 using CardSlots = std::array<std::uint8_t, 15>;
 using CardSupply = std::array<std::uint8_t, 30>;
 using CardPrices = std::array<std::uint8_t, 30>;
-using ToolAmounts = std::array<std::uint8_t, 15>;
+using ToolAmounts = std::array<std::uint16_t, 15>;
 using ToolSupply = std::array<std::uint8_t, 8>;
 using ToolPrices = std::array<std::uint8_t, 13>;
 
@@ -34,7 +34,7 @@ bool drop_half_cards(CardSlots &cards, CardSupply &supply);
 [[nodiscard]] std::uint32_t sell_all_cards(CardSlots &cards, CardSupply &supply, const CardPrices &prices);
 
 // Valid tool IDs are 1..13. The two remaining serialized slots are preserved.
-// First 8 tools draw from shared supply. Receive caps each tool count at 9.
+// First 8 tools draw from shared supply. Receive caps each tool count at MOD limit 999.
 bool receive_tool(ToolAmounts &amounts, ToolSupply &supply, std::uint8_t tool_id);
 bool consume_tool(ToolAmounts &amounts, ToolSupply &supply, std::uint8_t tool_id);
 // Only the inventory part of original sell_all_tools with traffic_method==0.
