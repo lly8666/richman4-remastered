@@ -248,6 +248,14 @@ class Application {
         : options_(std::move(options)), artwork_(options_.assets), font_(options_.font) {
         selected_map_ = options_.map % 4;
         selected_stage_ = options_.map / 4;
+        // The original stores 視窗 in RICH4.CFG[5]. Keep the Android view choice
+        // across launches, without changing any Save*.DAT game data.
+        if (!options_.headless && options_.ui_preset.empty()) {
+            std::ifstream config(options_.save_directory / "WindowView.cfg");
+            unsigned mode = 0;
+            if (config >> mode && mode <= 2)
+                main_screen_.set_view_mode(mode);
+        }
         if (options_.headless) {
             require(SDL_SetHintWithPriority(SDL_HINT_VIDEO_DRIVER, "dummy", SDL_HINT_OVERRIDE));
             require(SDL_SetHintWithPriority(SDL_HINT_AUDIO_DRIVER, "dummy", SDL_HINT_OVERRIDE));
@@ -1204,7 +1212,8 @@ class Application {
             last_screen_ = screen_;
             pad_.close();
             if (screen_ == Screen::settings)
-                options_screen_.open({speed_, audio_->music_enabled(), sound_effects_, interactive_minigames_},
+                options_screen_.open({speed_, audio_->music_enabled(), sound_effects_, interactive_minigames_,
+                                      main_screen_.view_mode()},
                                      session_ != nullptr);
             if (screen_ == Screen::wealth && session_)
                 info_.open(session_->world().header.current_player);
@@ -1282,6 +1291,16 @@ class Application {
                                audio_->set_music(state.music);
                            sound_effects_ = state.sound;
                            interactive_minigames_ = state.animation; // MINIGAMES: 動畫過程 (cfg+1)
+                           main_screen_.set_view_mode(state.view_mode); // 視窗: calendar / minimap / combined
+                           if (!options_.headless) {
+                               std::error_code error;
+                               fs::create_directories(options_.save_directory, error);
+                               if (!error) {
+                                   std::ofstream config(options_.save_directory / "WindowView.cfg", std::ios::trunc);
+                                   if (config)
+                                       config << main_screen_.view_mode() << '\n';
+                               }
+                           }
                            if (session_)
                                session_->set_interactive_mini_games(state.animation && !options_.auto_rounds);
                        },
