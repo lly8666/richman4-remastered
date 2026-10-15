@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "rich4/gods.hpp"
+#include "rich4/mod_rules.hpp"
 #include "rich4/calendar.hpp"
 #include "rich4/legacy_float.hpp"
 #include "rich4/services.hpp"
@@ -273,7 +274,7 @@ Result attach(World &world, Random &random, std::size_t actor, std::uint16_t id,
         const auto before = card_count(player.state.cards);
         const auto traffic = player.state.traffic_method & 3U;
         if (traffic)
-            ++player.state.tool_amounts[traffic == 3 ? 11 : traffic + 3];
+            mod::grant_equipped_tool(player.state.tool_amounts[traffic == 3 ? 11 : traffic + 3]);
         player.state.traffic_method = 0;
         player.state.dice_count = 1;
         // Original ignores both sell-all return values here: no point credit.
