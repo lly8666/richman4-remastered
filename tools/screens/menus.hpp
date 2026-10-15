@@ -23,7 +23,8 @@ inline constexpr int setup_character = 10, setup_map = 30, setup_ok = 40, setup_
                      setup_dropdown_close = 49, setup_item = 130;
 inline constexpr int options_speed = 50, options_outside = 51, options_cancel = 52, options_music = 53,
                      options_sound = 54, options_ok = 55, options_song = 56, options_volume = 47,
-                     options_confirm_yes = 58, options_confirm_no = 59, options_animation = 63;
+                     options_confirm_yes = 58, options_confirm_no = 59, options_animation = 63,
+                     options_view_first = 64;
 inline constexpr std::array<int, 3> options_big{57, 61, 62};
 inline constexpr int info_exit = 60, info_player = 160, info_page = 165, info_up = 168, info_down = 169,
                      info_category = 170;
@@ -121,6 +122,7 @@ struct OptionsState {
     unsigned speed = 1; // 1, 2, 4
     bool music = true, sound = true;
     bool animation = true; // 動畫過程 (RICH4.CFG[1]): interactive mini-games for humans
+    unsigned view_mode = 1; // 視窗 (RICH4.CFG[5]): 0 calendar, 1 minimap, 2 combined
 };
 struct OptionsActions {
     std::function<void(const OptionsState &)> apply;
@@ -134,6 +136,7 @@ class OptionsScreen {
   public:
     void open(OptionsState state, bool in_game) {
         state_ = state;
+        state_.view_mode %= 3;
         in_game_ = in_game;
         confirm_ = -1;
     }
