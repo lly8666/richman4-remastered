@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "rich4/calendar.hpp"
 #include "rich4/game.hpp"
+#include "rich4/mod_save.hpp"
+#include "rich4/mod_rules.hpp"
 #include "rich4/gods.hpp"
 #include "rich4/holidays.hpp"
 #include "rich4/random.hpp"
@@ -96,6 +98,33 @@ void first_landing(rich4::GameSession &game) {
         return game.phase() == rich4::GamePhase::awaiting_decision ||
                game.phase() == rich4::GamePhase::advancing_turn || game.phase() == rich4::GamePhase::finished;
     });
+}
+void mod_tool_save_and_fixed_inflation() {
+    auto value = world();
+    value.header.price_index = 99;
+    value.players[0].state.tool_amounts[0] = 999;
+    value.players[0].state.tool_amounts[8] = 512;
+    const std::vector<std::uint8_t> dat{1, 2, 3, 4, 5};
+    const auto extension = rich4::mod::encode_tool_extension(value, dat);
+    auto loaded = value;
+    loaded.players[0].state.tool_amounts[0] = 255;
+    loaded.players[0].state.tool_amounts[8] = 255;
+    rich4::mod::apply_tool_extension(loaded, dat, extension);
+    require(loaded.players[0].state.tool_amounts[0] == 999 &&
+                loaded.players[0].state.tool_amounts[8] == 512,
+            "MOD extension must restore tool counts above the byte-sized DAT field");
+    auto bad = loaded;
+    bad.players[0].state.tool_amounts[0] = 255;
+    bool rejected = false;
+    try {
+        const std::vector<std::uint8_t> stale{1, 2, 3, 4, 6};
+        rich4::mod::apply_tool_extension(bad, stale, extension);
+    } catch (const rich4::SaveError &) { rejected = true; }
+    require(rejected && bad.players[0].state.tool_amounts[0] == 255,
+            "stale MOD companion must fail atomically and preserve imported DAT counts");
+    rich4::GameSession game(std::move(value), 10);
+    require(game.world().header.price_index == 1,
+            "MOD must reset imported high inflation before the first turn");
 }
 void dice_and_paths() {
     rich4::GameSession game(world(), 1);
@@ -1530,6 +1559,7 @@ void landing_pauses() {
 int main() {
     try {
         landing_pauses();
+        mod_tool_save_and_fixed_inflation();
         dice_and_paths();
         dice_effect_is_presentation_only();
         parachute_marks_a_spawned_player();
