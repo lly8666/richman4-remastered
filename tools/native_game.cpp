@@ -1862,7 +1862,6 @@ class Application {
         decision_key_ = std::move(key);
         decision_page_ = 0;
         selected_target_.reset();
-        selected_research_.reset();
         target_center_.reset();
         if (decision.kind == DecisionKind::primary_stock)
             bank_amount_ = std::min(100, decision.max_amount);
