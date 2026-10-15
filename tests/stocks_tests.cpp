@@ -102,17 +102,23 @@ void unit_tests() {
     world.stocks[0].flags_10 = 65535;
     world.players[0].state.bank_balance = INT32_MAX;
     world.stocks[0].float_bits[2] = bits(1.0F);
-    rich4::stocks::sell_stock(world, 0, 0, 1, true);
-    check(world.stocks[0].shares_available == 0 && world.stocks[0].flags_10 == 0,
-          "share counters wrap at sixteen bits");
-    check(world.players[0].state.bank_balance == INT32_MIN, "bank addition wraps at thirty-two bits");
     bool rejected = false;
     try {
-        rich4::stocks::sell_stock(world, 0, 0, 1000, true);
+        rich4::stocks::sell_stock(world, 0, 0, 1, true);
     } catch (const std::invalid_argument &) {
         rejected = true;
     }
-    check(rejected && world.players[0].stocks[0].amount == 999, "oversell fails before mutation");
+    check(rejected && world.stocks[0].shares_available == 65535 &&
+              world.players[0].state.bank_balance == INT32_MAX &&
+              world.players[0].stocks[0].amount == 1000,
+          "MOD must reject 16-bit share and 32-bit bank wrap before changing the sale");
+    rejected = false;
+    try {
+        rich4::stocks::sell_stock(world, 0, 0, 1001, true);
+    } catch (const std::invalid_argument &) {
+        rejected = true;
+    }
+    check(rejected && world.players[0].stocks[0].amount == 1000, "oversell fails before mutation");
 
     world = fixture();
     world.stocks[0].suspension_days = 5;
@@ -126,6 +132,18 @@ void unit_tests() {
     check(world.stocks[0].news_movement == 0x11, "forced update preserves news flags");
     check(rich4::stocks::adjusted_price(1.0F, -10.0F) == 1.0F, "lower price clamp");
     check(rich4::stocks::adjusted_price(999999.0F, 10.0F) == 999999.0F, "MOD upper price clamp");
+
+    // High-price boundary: one share is safe, but 3000 * 999999
+    // exceeds int32 and must not mutate balances or holdings.
+    world = fixture();
+    world.stocks[0].float_bits[2] = bits(999999.0F);
+    world.players[0].stocks[0].amount = 3000;
+    rejected = false;
+    try {
+        rich4::stocks::sell_stock(world, 0, 0, 3000, true);
+    } catch (const std::invalid_argument &) { rejected = true; }
+    check(rejected && world.players[0].stocks[0].amount == 3000,
+          "MOD high-price sale must be rejected atomically on overflow");
 
     world = fixture();
     const auto purchase = rich4::stocks::buy_stock(world, 3, 0, 500, true);
