@@ -138,7 +138,8 @@ struct Facility {
     std::uint8_t level = 0;
     std::uint8_t direction = 0;
     std::uint8_t temporary_state = 0;
-    std::uint8_t flags_30 = 0; // Original facility byte +0x1e, cleared by sealing card.
+    std::uint8_t research_product = 0; // Original facility +0x1d: product index 0..4 (tools 9..13).
+    std::uint8_t flags_30 = 0; // Original +0x1e: research days remaining; sealing card clears it.
     std::uint16_t land_price = 0;
     std::array<std::uint16_t, 6> toll_by_level{};
     [[nodiscard]] std::uint16_t price_per_level() const noexcept {
