@@ -366,8 +366,8 @@ void SaveLoadScreen::draw(Host &host, const std::function<void(int)> &choose, co
 }
 
 // ---------------------------------------------------------------------------------------
-// §10 Options (rich4_ui_options.asm, Data 3). Only settings the native port supports are
-// live: speed, music on/off (with song preview) and sound on/off. The rest is greyed.
+// §10 Options (rich4_ui_options.asm, Data 3). The three 視窗 choices use the
+// original RICH4.CFG[5] layout values; the game already renders all three modes.
 
 void OptionsScreen::draw(Host &host, const OptionsActions &actions) {
     auto &frame = host.frame;
@@ -375,7 +375,6 @@ void OptionsScreen::draw(Host &host, const OptionsActions &actions) {
     const auto at = [](int x, int y, int x2, int y2) { return graphics::Rect{ox + x, oy + y, ox + x2, oy + y2}; };
     frame.picture('d', 3, 0, ox, oy);
     frame.picture('d', 3, in_game_ ? 11 : 10, ox + 168, oy + 2);
-    // Unsupported settings keep the original labels but their controls are inert.
     const Style label{15, 0x101010, 0, bold};
     text(frame, "遊戲速度", ox + 14, oy + 25, 5, label);
     text(frame, "動畫過程", ox + 14, oy + 58, 5, label);
@@ -417,6 +416,9 @@ void OptionsScreen::draw(Host &host, const OptionsActions &actions) {
     if (state_.animation) // fcn_0040fd49: cfg+1 on mark at ref_00474c22/26 = (98, 50)
         frame.picture('d', 3, 9, ox + 98, oy + 50);
     frame.picture('d', 3, 9, ox + 98, oy + 146); // the native game always autosaves daily
+    // Original fcn_0040fd49: radio dot at (218, 218/250/281) for window modes 0/1/2.
+    constexpr std::array<int, 3> view_mark_y{218, 250, 281};
+    frame.picture('d', 3, 9, ox + 218, oy + view_mark_y[state_.view_mode]);
     constexpr std::array<const char *, 8> songs{"1.星際總動員", "2.重回侏儸紀", "3.夢幻伊甸園", "4.打拼為將來",
                                                 "5.椰林風情畫", "6.浪漫月世界", "7.熱情的夏夜", "8.漫步星空下"};
     for (int i = 0; i < 8; ++i) {
@@ -458,6 +460,13 @@ void OptionsScreen::draw(Host &host, const OptionsActions &actions) {
     hit(host, ids::options_music, at(4, 74, 89, 105), click_sound, [this] { state_.music = !state_.music; });
     hit(host, ids::options_sound, at(4, 106, 89, 137), click_sound, [this] { state_.sound = !state_.sound; });
     hit(host, ids::options_animation, at(4, 42, 160, 73), click_sound, [this] { state_.animation = !state_.animation; });
+    // Slightly larger tap targets than the original 217..324 boxes, without overlapping rows.
+    // Selection is provisional until 確定, so 取消 leaves the previous layout unchanged.
+    for (unsigned mode = 0; mode < 3; ++mode) {
+        const int y = 210 + 32 * int(mode);
+        hit(host, ids::options_view_first + int(mode), at(206, y, 338, y + 32), click_sound,
+            [this, mode] { state_.view_mode = mode; });
+    }
     hit(host, ids::options_song, at(18, 226, 177, 346), click_sound, [actions, frame_pointer] {
         const int index = std::clamp((frame_pointer->pointer_y - oy - 226) / 15, 0, 7);
         if (actions.play_song)
