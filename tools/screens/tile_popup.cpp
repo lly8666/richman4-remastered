@@ -4,6 +4,7 @@
 
 #include "messages.hpp"
 #include "rich4/economy.hpp"
+#include "rich4/services.hpp"
 
 #include <array>
 #include <cstdlib>
@@ -174,8 +175,12 @@ std::vector<Line> lines(const World &world, std::uint16_t code) {
             result.push_back({36, std::string(grades[level])});
             if (type != 4) // hotel / mall: ×(facility +0x24[level] · price index)
                 result.push_back({54, times(std::int64_t(facility.toll_by_level[level]) * price_index)});
-            // Research institute: the original adds the produced tool's name when facility +0x1e
-            // is set (+0x1d, not decoded by World), so that line is omitted.
+            // Production index (+0x1d) and days remaining (+0x1e) are saved in the
+            // original facility record and available after loading a game.
+            if (type == 4 && facility.flags_30 && facility.research_product < 5)
+                result.push_back({27, "研發：" +
+                                         std::string(services::tool_names[8 + facility.research_product]) +
+                                         "（剩" + std::to_string(facility.flags_30) + "天）"});
         }
     } else if (code > 6000 && code < 8000) {
         if (std::size_t(code - 6000) >= world.commercials.size())
