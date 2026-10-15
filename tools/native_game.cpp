@@ -717,12 +717,17 @@ class Application {
         return session_ && session_->pending_decision() &&
                session_->pending_decision()->kind == DecisionKind::bank;
     }
+    bool research_cancellable() const {
+        return session_ && session_->pending_decision() &&
+               session_->pending_decision()->kind == DecisionKind::research_tool;
+    }
     // Screens where right-click / Escape / Android Back mean "cancel" in the original.
     bool cancellable() const {
         return help_.active() || pad_.active() || screen_ == Screen::new_game || screen_ == Screen::settings ||
                screen_ == Screen::wealth || screen_ == Screen::stocks || screen_ == Screen::load ||
                screen_ == Screen::trading || screen_ == Screen::ai_settings ||
-               screen_ == Screen::save || (screen_ == Screen::game && (bank_pending() || facility_cancellable()));
+               screen_ == Screen::save || (screen_ == Screen::game &&
+                   (bank_pending() || facility_cancellable() || research_cancellable()));
     }
     void cancel_screen() {
         auto host = make_host();
@@ -759,6 +764,15 @@ class Application {
                 bank_screen_.cancel(host, *session_->pending_decision(), bank_actions());
             else if (facility_cancellable()) // FACILITY: Back = the 改建卡 picker's right-click
                 facility_picker_.cancel(host, *session_->pending_decision(), [this](std::size_t i) { respond(i); });
+            else if (research_cancellable()) { // Touch: Android Back safely postpones research
+                const auto &options = session_->pending_decision()->options;
+                const auto postpone = std::find_if(options.begin(), options.end(),
+                    [](const auto &option) { return option.value == 0; });
+                if (postpone != options.end()) {
+                    host.sound(screens::cancel_sound);
+                    respond(static_cast<std::size_t>(postpone - options.begin()));
+                }
+            }
             break;
         default:
             break;
