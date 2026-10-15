@@ -491,6 +491,26 @@ void monthly_settlement() {
     require(figures.unlucky_days[3] == 3 && figures.spending[3] == 9000 && figures.unlucky == -1,
             "a lone unlucky score has no runner-up, so no 悲情人物");
 }
+// Unlike deterministic test replays, interactive loads do not restore a .rng
+// sidecar. Original save_load.asm reseeds from GetTickCount after loading DAT.
+void same_save_interactive_reload_rng() {
+    auto value = world();
+    const auto saved = rich4::SaveFile::decode(value.export_save());
+    rich4::LoadSeedSequence live_seeds;
+    const auto seed_a = live_seeds.next(123456U);
+    const auto seed_b = live_seeds.next(123456U); // second load inside same clock millisecond
+    rich4::GameSession first(rich4::World::from_save(saved), seed_a);
+    rich4::GameSession again(rich4::World::from_save(saved), seed_b);
+    require(first.export_save().encode() == again.export_save().encode() &&
+                first.random_state() != again.random_state(),
+            "same DAT should preserve map and inventory but get fresh live RNG seeds");
+    require(first.roll_dice() && again.roll_dice(), "both interactive reloads must permit dice");
+    rich4::Random expected_a(seed_a), expected_b(seed_b);
+    require(first.dice() == std::vector<std::uint8_t>{static_cast<std::uint8_t>(expected_a.next() % 6U + 1U)} &&
+                again.dice() == std::vector<std::uint8_t>{static_cast<std::uint8_t>(expected_b.next() % 6U + 1U)} &&
+                first.random_state() != again.random_state(),
+            "interactive reloads must use original Watcom rand() from freshly seeded streams");
+}
 void save_reload_and_deferred_spawn() {
     auto value = world();
     for (auto &entry : value.players) {
@@ -1436,6 +1456,7 @@ int main() {
         bank_and_failure();
         thirty_days_and_timing();
         monthly_settlement();
+        same_save_interactive_reload_rng();
         save_reload_and_deferred_spawn();
         facilities_events_and_rescue();
         teleport_landing_rules();
