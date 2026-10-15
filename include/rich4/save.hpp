@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
+#include "rich4/inventory.hpp"
 
 #include <array>
 #include <cstddef>
@@ -53,7 +54,7 @@ struct PlayerState {
     std::int32_t special_finance;
     std::uint16_t points;
     std::array<std::uint8_t, 15> cards;        // Card IDs in inventory slot order.
-    std::array<std::uint8_t, 15> tool_amounts; // Counts indexed by tool type.
+    ToolAmounts tool_amounts; // MOD: 16-bit counts, legacy DAT serializes only bytes.
 };
 
 struct MapTableSummary {
