@@ -588,7 +588,8 @@ void PlayerInfo::draw_assets(Host &host, const World &world) {
     for (std::size_t tool = 0; tool < services::tool_names.size() && cell < 15; ++tool) {
         if (!player.state.tool_amounts[tool])
             continue;
-        const int cx = 300 + 72 * (cell % 5), cy = 298 + 32 * (cell / 5);
+        // Original rich4.asm: player-info tool grid starts at y=281, not 298.
+        const int cx = 300 + 72 * (cell % 5), cy = 281 + 32 * (cell / 5);
         if (tool < 13)
             graphics::blit(frame.canvas, frame.artwork.frame('p', 74, tool), cx - 16, cy);
         text(frame, format("×%lld", player.state.tool_amounts[tool]), cx + 30, cy, 6, white_text);
@@ -597,7 +598,8 @@ void PlayerInfo::draw_assets(Host &host, const World &world) {
     cell = 0;
     for (const auto card : player.state.cards) {
         if (card >= 1 && card <= services::card_names.size()) {
-            const int cx = 300 + 72 * (cell % 5), cy = 402 + 32 * (cell / 5);
+            // The card grid starts at y=385 in the original player-info screen.
+            const int cx = 300 + 72 * (cell % 5), cy = 385 + 32 * (cell / 5);
             text(frame, services::card_names[card - 1], cx, cy, 2, {14, 0xffffff, 0x101010, shadow | bold});
         }
         ++cell;
