@@ -176,6 +176,33 @@ struct GameSession::Impl {
                (!(value.days_in_hotel | value.days_disappearing | value.days_in_prison | value.days_in_hospital) ||
                 (entry.state.controller_flags & 0x20U));
     }
+    struct PropertyAppearance {
+        std::uint8_t owner = 0, level = 0, type = 0;
+    };
+    std::optional<PropertyAppearance> appearance_before_card;
+    std::optional<PropertyAppearance> property_appearance(std::uint16_t code) const {
+        if (code > 2000 && code < 4000 && code - 2000U < world.lands.size()) {
+            const auto &land = world.lands[code - 2000U].economy;
+            return PropertyAppearance{land.owner_code, land.level, land.chain_store};
+        }
+        if (code > 4000 && code < 6000 && code - 4000U < world.facilities.size()) {
+            const auto &facility = world.facilities[code - 4000U];
+            return PropertyAppearance{facility.owner_code, facility.level, facility.facility_type};
+        }
+        return std::nullopt;
+    }
+    void effect_before_property(EffectEvent &movie, std::optional<PropertyAppearance> previous) {
+        if (!previous)
+            return;
+        movie.previous_owner = previous->owner;
+        movie.previous_level = previous->level;
+        movie.previous_type = previous->type;
+        movie.has_previous_property = true;
+    }
+    void remember_card_appearance(std::uint16_t code) {
+        if (!appearance_before_card)
+            appearance_before_card = property_appearance(code);
+    }
     std::uint32_t costume_key(std::size_t slot) const {
         const auto &entry = world.players.at(slot);
         return entry.state.traffic_method | (entry.status.days_sleep_walking ? 0x100U : 0U) |
@@ -228,6 +255,7 @@ struct GameSession::Impl {
             return;
         effect(card == 12 ? EffectKind::demolish : EffectKind::monster, actor(), property_point(target->value),
                target->value);
+        effect_before_property(effects.back(), appearance_before_card);
     }
     // AI targeted cards: the card sprite (Data 415) flies from the user to the target first
     // (rich4_card_*.asm, _rich4_animate_object(0, ..., 100), skipped for a human user).
@@ -279,6 +307,10 @@ struct GameSession::Impl {
     void begin_card(const CardUse &use) {
         chosen_card_target.reset();
         card_in_use = use;
+        appearance_before_card.reset();
+        if ((use.card_id == 11 || use.card_id == 12) && use.target &&
+            use.target->kind == CardTargetKind::property)
+            remember_card_appearance(use.target->value);
         card_picture_shown = false;
     }
     void card_picture() {
@@ -2117,6 +2149,8 @@ struct GameSession::Impl {
         effects.back().object_kind = direction::from_delta(building.x - node.x, building.y - node.y);
         effects.back().previous_level = level;
         effects.back().previous_type = type;
+        effects.back().previous_owner = owner;
+        effects.back().has_previous_property = true;
         emit(GameEventKind::notice, "工程车拆除脚下建筑");
     }
     void turn_around(std::size_t slot) {
@@ -2433,8 +2467,10 @@ struct GameSession::Impl {
         callbacks.voice = [this](auto slot, auto category) { voice(slot, category); };
         callbacks.upgrade_property = [this](auto code) { return upgrade_for_god(code); };
         callbacks.downgrade_property = [this](auto code) {
+            const auto previous = property_appearance(code);
             change_building(code, false);
             effect(EffectKind::demon_puff, actor(), property_point(code), code); // Data 526
+            effect_before_property(effects.back(), previous);
         };
         callbacks.hostility = [this](auto from, auto to, auto delta) { update_hostility(from, to, delta); };
         callbacks.appeared = [this](auto slot, auto kind) {
@@ -2595,6 +2631,8 @@ struct GameSession::Impl {
         callbacks.choose_target = [this](auto card, auto options) {
             auto chosen = choose_target(options, std::string(services::card_names.at(card - 1)) + "：選擇目標");
             chosen_card_target = chosen; // Presentation only (card_effect).
+            if ((card == 11 || card == 12) && chosen && chosen->kind == CardTargetKind::property)
+                remember_card_appearance(chosen->value);
             return chosen;
         };
         callbacks.choose_inventory = [this](auto, auto victim) -> std::optional<CardTarget> {
@@ -2832,8 +2870,10 @@ struct GameSession::Impl {
         };
         callbacks.upgrade = [this](auto code) {
             const auto before = property_level(code);
+            const auto previous = property_appearance(code);
             change_building(code, true);
             effect(EffectKind::build_rise, actor(), property_point(code), code); // Data 553
+            effect_before_property(effects.back(), previous);
             sparkle_if_top_floor(code, before);
         };
         callbacks.before_teleport = [this](auto slot) {
