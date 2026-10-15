@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "rich4/game.hpp"
+#include "rich4/mod_rules.hpp"
 #include "rich4/auction.hpp"
 #include "rich4/board_renderer.hpp"
 #include "rich4/calendar.hpp"
@@ -3496,6 +3497,9 @@ struct GameSession::Impl {
         return stocks::player_wealth(world, slot);
     }
     void update_price_index() {
+        // MOD: inflation is disabled even when wealth climbs sharply.
+        world.header.price_index = mod::fixed_price_index;
+        return;
         std::int32_t total = 0, active = 0;
         for (std::size_t i = 0; i < world.players.size(); ++i)
             if (world.players[i].state.controller_flags) {
