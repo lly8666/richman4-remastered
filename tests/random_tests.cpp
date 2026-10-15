@@ -82,6 +82,23 @@ int main(int argc, char **argv) {
         check(copy.next() == first.next(), "copied state must resume the same stream");
         first.seed(1);
         check(first.next() == 16838, "reseed must reset the full state");
+
+        // The same DAT loaded interactively twice should NOT rewind to the
+        // same native RNG state. Original save_load.asm reseeds from uptime.
+        // Two loads in one millisecond must still receive different seeds.
+        rich4::LoadSeedSequence interactive_loads;
+        const auto load1 = interactive_loads.next(123456U);
+        const auto load2 = interactive_loads.next(123456U);
+        const auto load3 = interactive_loads.next(123457U);
+        check(load1 == 123457U && load2 == 123458U && load3 == 123460U,
+              "reloading the same DAT must not restore the previous random seed");
+        rich4::Random first_load(load1), second_load(load2);
+        check(first_load.state() != second_load.state(),
+              "interactive loaded sessions must not replay identical initial RNG state");
+        // Identical seeds remain supported for deterministic headless regression.
+        rich4::Random replay(load1);
+        check(replay.next() == first_load.next(), "headless seed replay changed");
+
         if (argc == 2)
             compare_original(argv[1]);
         else if (argc != 1)
