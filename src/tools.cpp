@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "rich4/tools.hpp"
+#include "rich4/mod_rules.hpp"
 #include "rich4/direction.hpp"
 #include <algorithm>
 #include <bit>
@@ -35,9 +36,9 @@ Result equip(World &world, std::size_t slot, unsigned tool) {
     if ((transport == 3 ? (state.traffic_method & 3U) : state.traffic_method) == transport)
         return skipped("已經使用這種交通工具");
     if (state.traffic_method == 1)
-        ++state.tool_amounts[4];
+        mod::grant_equipped_tool(state.tool_amounts[4]);
     else if (state.traffic_method == 2)
-        ++state.tool_amounts[5];
+        mod::grant_equipped_tool(state.tool_amounts[5]);
     if (tool == 12) {
         p.status.flags_100 = state.traffic_method;
         p.status.flags_101 = state.dice_count;
@@ -307,9 +308,9 @@ bool dismount(World &w, std::size_t slot) {
     if (!p.traffic_method)
         return false;
     if (p.traffic_method == 1)
-        ++p.tool_amounts[4];
+        mod::grant_equipped_tool(p.tool_amounts[4]);
     else if (p.traffic_method == 2)
-        ++p.tool_amounts[5];
+        mod::grant_equipped_tool(p.tool_amounts[5]);
     p.traffic_method = 0;
     p.dice_count = 1;
     return true;
