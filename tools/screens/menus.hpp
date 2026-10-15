@@ -78,7 +78,7 @@ class NewGameSetup {
     void fill_one();
     void draw_backdrop(Host &host);
     unsigned stage_ = 0, map_ = 0;
-    std::array<int, 6> values_{2, 1, 0, 0, 0, 0};
+    std::array<int, 6> values_{2, 2, 0, 0, 0, 0}; // MOD: index 2 keeps the original 200000 default
     std::vector<std::uint8_t> picks_;
     std::size_t human_count_ = 0;
     int dropdown_ = -1, hovered_ = -1;
