@@ -260,6 +260,29 @@ void missile_presentation_order() {
                 "missile must still hospitalize the struck player");
     }
 }
+// 土地公 attaches as an object. Standing on OWN LAND still presents the
+// ordinary upgrade dialog; only unowned purchases are suppressed (the god
+// later claims such land in its post-property hook). Object ID != kind is
+// independently exercised to prevent accidental comparisons against IDs.
+void land_god_own_upgrade() {
+    for (const unsigned object_id : {12U, 18U}) {
+        auto w = world();
+        property_nodes(w);
+        w.lands[1].economy.owner_code = 1;
+        w.lands[1].economy.level = 2;
+        auto &object = w.objects.at(object_id - 1);
+        object.kind = 12; // 土地公
+        object.node_id = w.players[0].state.node_id;
+        object.attached_player = 1;
+        w.players[0].status.god_info = static_cast<std::uint8_t>(object_id);
+        rich4::GameSession game(std::move(w), 5);
+        first_landing(game);
+        require(game.pending_decision() && game.pending_decision()->kind == rich4::DecisionKind::upgrade_land,
+                "land god must not suppress an own-land upgrade choice");
+        require(game.respond(0) && game.world().lands[1].economy.level == 3,
+                "land god must allow the ordinary paid upgrade on owned land");
+    }
+}
 void property_and_rent() {
     auto value = world();
     property_nodes(value);
@@ -1451,6 +1474,7 @@ int main() {
         parachute_marks_a_spawned_player();
         tool_and_card_effects();
         missile_presentation_order();
+        land_god_own_upgrade();
         property_and_rent();
         alliance_rent();
         bank_and_failure();
