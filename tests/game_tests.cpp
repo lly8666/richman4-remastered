@@ -122,9 +122,12 @@ void mod_tool_save_and_fixed_inflation() {
     } catch (const rich4::SaveError &) { rejected = true; }
     require(rejected && bad.players[0].state.tool_amounts[0] == 255,
             "stale MOD companion must fail atomically and preserve imported DAT counts");
-    // Synthetic worlds intentionally retain configured historical values for
-    // original oracle cases; real DAT-backed worlds normalize at session entry.
-    require(rich4::mod::fixed_price_index == 1, "MOD fixed price-index constant");
+    // The fixture derives from an actual DAT round trip, so GameSession must
+    // normalize the imported inflation index before gameplay begins.
+    rich4::GameSession game(std::move(value), 10);
+    require(rich4::mod::fixed_price_index == 1 &&
+                game.world().header.price_index == 1,
+            "MOD must reset an imported 99x price index before the first turn");
 }
 void dice_and_paths() {
     rich4::GameSession game(world(), 1);
