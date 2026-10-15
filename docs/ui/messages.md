@@ -417,6 +417,17 @@ The attach handler for god kind k (`_rich4_god_names`, 0x47ed7a, order: 小財�
      `"小衰神附身\n\n遺失%s！"`, `"大衰神附身\n\n遺失一半卡片！"`.
    - Spinner dialogs for 財神/窮神 (§2.3).
    - A bubble (slot 6–8 or 0–2).
+   - **2026-10-15 native parity fix:** `gods::attach` now queues
+     `Announcement::god_inventory` after `god_appear` and `god_arrival`.
+     The overlay receives the exact awarded/lost card ID(s) without drawing RNG
+     again; small/big fortune gods name one/two awarded cards, small poverty
+     god names the lost card, big poverty god reports half-card loss.
+     Kind-15 all-card loss also receives a readable notice, but the precise
+     original kind-15 box wording has not yet been independently verified.
+   - The carried god sprite must not be visible during the introduction movie
+     or the 2400ms caption. The native UI suppresses only the newly attached
+     god (by actual object ID and carrier), not unrelated time bombs or actors,
+     until the last original intro image/caption is finished.
 5. **God leaving.** Slot 23 bubble, mood 2, and Effect 0x36 (`_rich4_detach_god`).
 6. **Active god on a property event.** Boxes `"%s顯靈\n\n加蓋一層房屋！"`, `"小惡魔顯靈\n\n拆毀一層房屋！"`,
    `"土地公顯靈\n\n強佔土地！"`, `"%s顯靈\n\n投資失敗！"`.
