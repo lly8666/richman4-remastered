@@ -4,6 +4,7 @@
 
 #include "messages.hpp"
 #include "rich4/cards.hpp"
+#include "rich4/mod_rules.hpp"
 #include "rich4/flc.hpp"
 #include "rich4/inventory.hpp"
 #include "rich4/services.hpp"
@@ -826,7 +827,7 @@ void Screens::draw_shop(Frame &frame, GameSession &session, const GameDecision &
             const int kind = card ? 0 : 1;
             if (state.points < price)
                 complain(mode_lines[2]);
-            else if (card ? card_count(state.cards) >= 15 : state.tool_amounts.at(item - 1) >= 9)
+            else if (card ? card_count(state.cards) >= 15 : state.tool_amounts.at(item - 1) >= mod::max_tool_amount)
                 complain(mode_lines[3]);
             else if (shop_.pick_kind != kind || shop_.pick_index != row) {
                 // Touch: the first tap shows the item in the balloon, a second tap buys it.
