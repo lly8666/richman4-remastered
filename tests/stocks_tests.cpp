@@ -125,7 +125,7 @@ void unit_tests() {
           "history zero wraps to previous sample");
     check(world.stocks[0].news_movement == 0x11, "forced update preserves news flags");
     check(rich4::stocks::adjusted_price(1.0F, -10.0F) == 1.0F, "lower price clamp");
-    check(rich4::stocks::adjusted_price(9999.0F, 10.0F) == 9999.0F, "upper price clamp");
+    check(rich4::stocks::adjusted_price(999999.0F, 10.0F) == 999999.0F, "MOD upper price clamp");
 
     world = fixture();
     const auto purchase = rich4::stocks::buy_stock(world, 3, 0, 500, true);
