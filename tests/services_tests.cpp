@@ -95,8 +95,8 @@ void transactions() {
     w = sample();
     shop = {};
     shop.tools = {1};
-    w.players[0].state.tool_amounts[0] = 9;
-    require(!services::buy_tool(w, shop, 0, 1), "tool cap");
+    w.players[0].state.tool_amounts[0] = 999;
+    require(!services::buy_tool(w, shop, 0, 1), "MOD 999 tool cap");
     w.players[0].state.tool_amounts[0] = 2;
     require(services::sell_tool(w, shop, 0, 1, 2) && w.players[0].state.points == 127,
             "quantity rounded once");
