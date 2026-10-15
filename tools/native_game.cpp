@@ -17,6 +17,7 @@
 #include "rich4/direction.hpp"
 #include "rich4/game.hpp"
 #include "rich4/mod_rules.hpp"
+#include "rich4/mod_save.hpp"
 #include "rich4/random.hpp"
 #include "rich4/services.hpp"
 #include "rich4/stocks.hpp"
@@ -1058,7 +1059,17 @@ class Application {
                     std::chrono::steady_clock::now().time_since_epoch()).count();
                 seed = load_seeds_.next(static_cast<std::uint32_t>(uptime_ms));
             }
-            install_session(World::from_save(SaveFile::decode(bytes)), seed);
+            auto loaded = World::from_save(SaveFile::decode(bytes));
+            // Read the 16-bit MOD tool inventory only when the sidecar belongs
+            // to this exact DAT. Reject stale/corrupt companions rather than
+            // silently replacing counts from a different save.
+            if (fs::exists(path.string() + ".mod")) {
+                const auto extension = ui::read_file(path.string() + ".mod");
+                mod::apply_tool_extension(loaded, bytes,
+                                          std::string_view(reinterpret_cast<const char *>(extension.data()),
+                                                           extension.size()));
+            }
+            install_session(std::move(loaded), seed);
             audio_->select_music(0); // AUDIO: loading moves on to the next playlist track (save_load.asm:978)
             music_director_.forget();
             ++loads_;
@@ -1084,7 +1095,10 @@ class Application {
         toast_until_ = SDL_GetTicks() + 2200;
     }
     void write_save(const fs::path &path) {
-        ui::write_file(path, session_->export_save().encode());
+        const auto dat = session_->export_save().encode();
+        const auto extension = mod::encode_tool_extension(session_->world(), dat);
+        ui::write_file(path, dat);
+        ui::write_file(path.string() + ".mod", {extension.begin(), extension.end()});
         const auto state = "RICH4-RNG-1 " + std::to_string(session_->random_state()) + '\n';
         ui::write_file(path.string() + ".rng", {state.begin(), state.end()});
     }
