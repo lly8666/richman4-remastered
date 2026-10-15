@@ -433,8 +433,12 @@ std::vector<std::uint8_t> World::export_save() const {
         put32(bytes, offset + 96, player.status.cumulative_income);
         std::copy(state.cards.begin(), state.cards.end(),
                   bytes.begin() + 0x654 + static_cast<std::ptrdiff_t>(slot * 15));
-        std::copy(state.tool_amounts.begin(), state.tool_amounts.end(),
-                  bytes.begin() + 0x690 + static_cast<std::ptrdiff_t>(slot * 15));
+        // Original DAT allocates one byte per tool count. Clamp its preview
+        // (rather than wrapping 999 to 231), and store the true 16-bit MOD
+        // counts in a checksum-bound .mod extension written by the app.
+        for (std::size_t tool = 0; tool < state.tool_amounts.size(); ++tool)
+            bytes[0x690 + slot * 15 + tool] =
+                static_cast<std::uint8_t>(std::min<unsigned>(state.tool_amounts[tool], 255U));
         for (std::size_t stock = 0; stock < player.stocks.size(); ++stock) {
             const auto stock_offset = 0x21f6 + slot * 96 + stock * 8;
             put32(bytes, stock_offset, std::bit_cast<std::uint32_t>(player.stocks[stock].amount));
