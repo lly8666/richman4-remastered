@@ -1570,7 +1570,18 @@ class Application {
         // A purchase/upgrade not presented yet is not on the board yet: the original redraws the plot
         // with the new owner flag / building when it buys (core_actions:1051/439), after the 5-tick
         // walk-end pause, then holds 8 ticks (EffectKind::pause).
+        // Also defer building appearance until the commit frame of a queued
+        // worker/monster/demolition movie, even while an earlier bubble is shown.
+        std::vector<EffectEvent> future_building_effects;
+        for (const auto &step : presentation_)
+            if (step.effect && step.effect->has_previous_property)
+                future_building_effects.push_back(*step.effect);
+        effects_.set_future_effects(std::move(future_building_effects));
         for (auto step = presentation_.rbegin(); step != presentation_.rend(); ++step) {
+            if (step->effect) {
+                native::restore_pre_movie_property(lands, facilities, *step->effect);
+                continue;
+            }
             if (!step->event || step->event->node >= world.nodes.size())
                 continue;
             const auto &event = *step->event;
