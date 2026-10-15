@@ -47,13 +47,15 @@ struct SceneData {
 // (god, picked-up time bomb) follows that player's drawn sprite `players` (interpolated point and
 // heading) and is skipped when the carrier is not drawn; the rest stand on their node.
 std::vector<board::ObjectSprite> object_sprites(const World &world, const std::vector<board::PlayerSprite> &players,
-                                                std::uint8_t frame);
+                                                std::uint8_t frame,
+                                                std::optional<std::size_t> hidden_arriving_god = std::nullopt);
 // Same sprite construction as the main board (no walking interpolation). costumes: per-slot
 // GameSession::player_costume (gown/stripes pose), 0 = none.
 // Removes unattached object sprites that `hidden(position, kind)` says are not on the board yet.
 void hide_objects(std::vector<board::ObjectSprite> &objects,
                   const std::function<bool(board::Point, std::uint8_t)> &hidden);
-SceneData make_scene(const World &world, std::uint64_t ticks, const std::array<std::uint8_t, 4> &costumes = {});
+SceneData make_scene(const World &world, std::uint64_t ticks, const std::array<std::uint8_t, 4> &costumes = {},
+                     std::optional<std::size_t> hidden_arriving_god = std::nullopt);
 // Reverse one pending visual building mutation, without rolling back rule state.
 // Apply pending movies in reverse chronological order to reconstruct the picture
 // that belongs before their original on-screen commit frames.
@@ -118,6 +120,9 @@ class EffectPlayer {
     // queue (not yet handed to this player); only metadata is copied.
     void set_future_effects(std::vector<EffectEvent> pending) { future_effects_ = std::move(pending); }
     [[nodiscard]] bool active() const noexcept { return current_.has_value() || !queue_.empty(); }
+    // The live world already has the god attached. Do not draw its carried
+    // sprite while its entrance film/caption is still being presented.
+    [[nodiscard]] std::optional<std::size_t> arriving_god_player() const noexcept;
     // The world already holds a thrown roadblock/mine/time bomb on its node while the throw is still
     // queued or flying; the original only shows it after the throw lands (_rich4_animate_object
     // restores its own background, then _rich4_refresh_screen). True for such an object.
