@@ -74,12 +74,12 @@ void AiSettingsScreen::draw(Host &host, const World &world, const AiSettingsActi
     text(frame, "資金", 407, 372, 5, label_font);
     text(frame, "確定", 499, 187, 3, button_font);
     text(frame, "取消", 499, 275, 3, button_font);
-    // Players: tab 77:1 (selected) / 77:2, face 77:(6+character), 託管 dot 77:3.
+    // Original rich4_ui_ai_settings.asm: 77:1 is a normal tab, 77:2 is selected.
     for (std::size_t slot = 0; slot < edits_.size() && slot < world.players.size(); ++slot) {
         if (!edits_[slot])
             continue;
         const int y = 70 + 83 * int(slot);
-        picture(slot == selected_ ? 1 : 2, 110, y);
+        picture(slot == selected_ ? 2 : 1, 110, y);
         picture(6 + std::size_t(world.players[slot].state.character % 12), 182, 110 + 83 * int(slot));
         if (edits_[slot]->autopilot)
             picture(3, 121, 106 + 83 * int(slot));
