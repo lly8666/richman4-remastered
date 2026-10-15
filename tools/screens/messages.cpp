@@ -271,6 +271,36 @@ std::optional<Item> from_event(const GameEvent &event, const World &world) {
         return fortune_item(event, world);
     case Announcement::god_arrival:
         return god_item(event);
+    case Announcement::god_inventory: {
+        const auto card_name = [](std::int32_t id) -> std::string_view {
+            return id > 0 && std::size_t(id) <= services::card_names.size()
+                       ? services::card_names[std::size_t(id - 1)] : std::string_view{};
+        };
+        const auto first = card_name(event.value), second = card_name(event.second_subject);
+        switch (event.announcement_id) {
+        case 3:
+            return first.empty() ? std::nullopt
+                                 : std::optional<Item>(box("小福神附身\\n\\n得到" + std::string(first) + "！"));
+        case 4:
+            if (first.empty() && second.empty())
+                return std::nullopt;
+            return box("大福神附身\\n\\n得到" + std::string(first.empty() ? second : first) +
+                       (first.empty() || second.empty() ? "" : "及" + std::string(second)) + "！");
+        case 7:
+            return first.empty() ? std::nullopt
+                                 : std::optional<Item>(box("小衰神附身\\n\\n遺失" + std::string(first) + "！"));
+        case 8:
+            return event.amount ? std::optional<Item>(box("大衰神附身\\n\\n遺失一半卡片！"))
+                                : std::nullopt;
+        case 15:
+            // Kind-15 loss-all box wording is a native clarification; its exact
+            // original text has not yet been recovered from the EXE.
+            return event.amount ? std::optional<Item>(box("神明附身\\n\\n遺失所有卡片！"))
+                                : std::nullopt;
+        default:
+            return std::nullopt;
+        }
+    }
     case Announcement::absent_status: {
         static constexpr std::array<std::string_view, 5> patterns{
             "%s住宿中\n\n還剩%d天！", "%s消失中\n\n還剩%d天！", "%s坐牢中\n\n還剩%d天！",
