@@ -528,7 +528,7 @@ void facilities_events_and_rescue() {
     require(laboratory.respond(0) && laboratory.world().facilities[1].flags_30 == 5 &&
                 laboratory.world().facilities[1].research_product == 0,
             "selected research must start a five-day production cycle");
-    const auto saved_lab = rich4::World::from_save(laboratory.export_save());
+    const auto saved_lab = rich4::World::from_save(rich4::SaveFile::decode(laboratory.world().export_save()));
     require(saved_lab.facilities[1].flags_30 == 5 &&
                 saved_lab.facilities[1].research_product == 0,
             "research progress lost during DAT save/reload");
