@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // News/fortune dispatch translated from original handlers; see migration 014.
 #include "rich4/events.hpp"
+#include "rich4/mod_rules.hpp"
 #include "rich4/inventory.hpp"
 #include "rich4/legacy_float.hpp"
 
@@ -855,11 +856,11 @@ EventResult apply_fortune_id(World &world, Random &random, std::size_t actor, st
         if (player.state.traffic_method != 0) {
             const auto transport = player.state.traffic_method & 3;
             if (transport == 1)
-                ++player.state.tool_amounts[4];
+                mod::grant_equipped_tool(player.state.tool_amounts[4]);
             else if (transport == 2)
-                ++player.state.tool_amounts[5];
+                mod::grant_equipped_tool(player.state.tool_amounts[5]);
             else if (transport == 3)
-                ++player.state.tool_amounts[11];
+                mod::grant_equipped_tool(player.state.tool_amounts[11]);
             player.state.traffic_method = 0;
             player.state.dice_count = 1;
         }
