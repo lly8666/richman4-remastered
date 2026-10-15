@@ -354,6 +354,24 @@ void EffectPlayer::draw(graphics::Image &canvas, board::Renderer &board, const W
                 play_sound(static_cast<std::size_t>(index));
         };
         const bool truck = event.kind == EffectKind::truck_demolish;
+        // A god which will appear later in this batch is already attached in
+        // world data. Hide it under earlier movies as well as its own entrance.
+        std::optional<std::size_t> arriving_god;
+        if (event.kind == EffectKind::god_appear)
+            arriving_god = event.player;
+        else {
+            for (const auto &future : future_effects_)
+                if (future.kind == EffectKind::god_appear) {
+                    arriving_god = future.player;
+                    break;
+                }
+            if (!arriving_god)
+                for (const auto &later : queue_)
+                    if (later.kind == EffectKind::god_appear) {
+                        arriving_god = later.player;
+                        break;
+                    }
+        }
         // Camera (fcn_0041d476(x,y,0)): the target for targeted movies, else the actor.
         board::Point actor{event.target.x, event.target.y};
         if (event.from)
@@ -443,9 +461,7 @@ void EffectPlayer::draw(graphics::Image &canvas, board::Renderer &board, const W
         if (committed || !snapshot_) {
             if (committed)
                 snapshot_.reset(); // later effects of the same batch use the live world (spec §9.4)
-            scene = make_scene(world, ticks, costumes_,
-                               event.kind == EffectKind::god_appear
-                                   ? std::optional<std::size_t>(event.player) : std::nullopt);
+            scene = make_scene(world, ticks, costumes_, arriving_god);
         } else
             scene = *snapshot_;
         // Multiple property effects may have been computed in one core tick.
@@ -467,9 +483,7 @@ void EffectPlayer::draw(graphics::Image &canvas, board::Renderer &board, const W
             if (!pending.empty()) {
                 const auto frame = static_cast<std::uint8_t>((ticks / 120) % 6);
                 apply_pending_actors(scene.players, world, pending, frame, costumes_);
-                scene.objects = object_sprites(world, scene.players, frame,
-                                               event.kind == EffectKind::god_appear
-                                                   ? std::optional<std::size_t>(event.player) : std::nullopt);
+                scene.objects = object_sprites(world, scene.players, frame, arriving_god);
             }
         }
         hide_objects(scene.objects, [this](board::Point node, std::uint8_t kind) { return throw_pending(node, kind); });
