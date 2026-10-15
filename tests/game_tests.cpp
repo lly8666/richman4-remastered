@@ -225,6 +225,23 @@ void tool_and_card_effects() {
     const auto picture = find(effects, rich4::EffectKind::demolish);
     require(picture != effects.end() && picture->property == targets[0].value && picture->target.y == 160,
             "demolish effect");
+    require(picture->has_previous_property && picture->previous_level == 3 &&
+                picture->previous_owner == 2 && demolish.world().lands[1].economy.level < 3,
+            "demolish movie must preserve the old house until its commit frame");
+    // Robot construction likewise changes the rule state immediately, but
+    // its Data 553 movie must show the PRE-upgrade building until frame 44.
+    value = world();
+    value.players[0].state.tool_amounts[8] = 1;
+    value.lands[1].economy.owner_code = 1;
+    value.lands[1].economy.level = 2;
+    rich4::GameSession worker(std::move(value), 5);
+    require(worker.use_tool(9, 2001), "robot worker should upgrade a property");
+    effects = worker.drain_effects();
+    const auto building = find(effects, rich4::EffectKind::build_rise);
+    require(building != effects.end() && building->property == 2001 &&
+                building->has_previous_property && building->previous_level == 2 &&
+                building->previous_owner == 1 && worker.world().lands[1].economy.level == 3,
+            "building-rise movie must show old level until the original frame 44");
 }
 // Missile impact is visibly committed on film frame 9. The actor can already be
 // hospitalised in the rule state, but the presentation must play the missile before
