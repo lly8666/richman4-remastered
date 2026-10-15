@@ -337,7 +337,7 @@ struct GameSession::Impl {
                               std::uint16_t property) {
         const std::uint8_t reason = (temporary & 0xf0U) && (temporary & 0x0fU) ? 0
                                     : owner.allied_player == actor() + 1     ? 1
-                                    : owner.god_info == 15                   ? 2
+                                    : god_kind(owner_slot) == 15             ? 2
                                     : owner.days_in_hotel                    ? 3
                                     : owner.days_disappearing                ? 4
                                     : owner.days_in_prison                   ? 5
