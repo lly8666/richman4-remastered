@@ -47,6 +47,30 @@ are relative to `.local/upstream/asm`.
 Buying an **unowned** facility lot and **upgrading** a facility use the yes/no box (`messages.md` §2.2),
 not this screen.
 
+## 3. Research institute: shared original-style selection UI
+
+The institute's research rules and save bytes are handled by the game engine. The touchscreen
+selection is routed through the **same** `facility::Picker` as large-lot construction, not
+through a separate native-looking rectangular dialog.
+
+- **Prompt:** original `Data.mkf 517:5` message box at (220,140), with the same 16px
+  white/shadowed typeface as the facility choice. First tap shows the selected tool name.
+- **Pictures:** original `Panel.mkf 11:1` tool tray at (14,279), with original sprites
+  `Panel.mkf 11:(tool_id+1)` for tools 9..13 (機器工人, 時光機, 傳送機, 工程車, 核子飛彈).
+- **Level lock:** all five icons are visible; a tool missing from `decision.options` is
+  darkened and has no hit target. Options remain in the engine's order.
+- **Touch:** first tap selects a 78×54 icon cell, displaying the same three nested yellow
+  frames as construction. Second tap commits; the 確定 button also commits. 稍後研究
+  submits the existing core value `0`; Android Back has the same postpone behavior.
+- **Reset:** a new/finished decision clears the shared selection even when two research
+  prompts have identical text and available tools.
+- **Regression pictures:** `--overlay-gallery` writes
+  `gallery-rules-research-level-1.ppm`, `gallery-rules-research-level-5.ppm`, and
+  `gallery-rules-research-level-5-selected.ppm`. These are composited from the game art.
+
+This reuses authentic game assets and the original large-lot picker's behaviour; it is not
+claimed to be a byte-for-byte reconstruction of an unverified dedicated PC research dialog.
+
 ## 3. Native (`tools/screens/facility.{hpp,cpp}`)
 
 - Hooked from `draw_decision` for `DecisionKind::construct_facility` and for the 改建卡 `action_target`
