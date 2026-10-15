@@ -78,6 +78,11 @@ class MainScreen {
     void cycle_view_mode() {
         view_mode_ = (view_mode_ + 1) % 3;
     }
+    void set_view_mode(unsigned mode) {
+        view_mode_ = mode % 3;
+        // Switching layouts must end a minimap drag left over from the old panel position.
+        minimap_drag_ = false;
+    }
     [[nodiscard]] unsigned view_mode() const {
         return view_mode_;
     }
