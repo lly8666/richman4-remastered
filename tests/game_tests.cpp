@@ -631,6 +631,64 @@ void facilities_events_and_rescue() {
                 rescue.world().prison_roster[1] == 0,
             "prison rescue must spend points and defer original release");
 }
+// Teleporting the user must settle the destination as the end of the die move, not
+// leave GO active. Other targets must not consume the user's dice/landing.
+void teleport_landing_rules() {
+    auto value = world();
+    value.players[0].state.tool_amounts[10] = 1;
+    value.lands[1].economy.owner_code = 1;
+    value.lands[1].economy.level = 1;
+    value.nodes[5].flags &= ~0xffU;
+    value.nodes[5].type_and_index = 2001;
+    rich4::GameSession upgrade(value, 19);
+    const auto cash = upgrade.world().players[0].state.cash;
+    require(upgrade.use_tool(11, 0x8001, 5) &&
+                upgrade.pending_decision() &&
+                upgrade.pending_decision()->kind == rich4::DecisionKind::upgrade_land &&
+                !upgrade.roll_dice(), "self teleport to own house must offer an upgrade, not GO");
+    require(upgrade.respond(0) &&
+                upgrade.world().lands[1].economy.level == 2 &&
+                upgrade.world().players[0].state.cash == cash - 400 &&
+                upgrade.phase() == rich4::GamePhase::advancing_turn,
+            "teleported house upgrade must charge cash and finish the turn");
+
+    value = world();
+    value.players[0].state.tool_amounts[10] = 1;
+    value.players[0].state.points = 1000;
+    value.nodes[5].flags = (value.nodes[5].flags & ~0xffU) | 15U;
+    rich4::GameSession shop(value, 17);
+    require(shop.use_tool(11, 0x8001, 5) && shop.pending_decision() &&
+                shop.pending_decision()->kind == rich4::DecisionKind::shop && !shop.roll_dice(),
+            "self teleport to shop must open normal card/tool trading");
+    require(shop.respond(0) && shop.world().players[0].state.points < 1000 &&
+                shop.pending_decision() && shop.pending_decision()->kind == rich4::DecisionKind::shop,
+            "teleported shop should allow an item purchase");
+    const auto exit = shop.pending_decision()->options.size() - 1;
+    require(shop.respond(exit) && shop.phase() == rich4::GamePhase::advancing_turn,
+            "leaving a teleported shop must finish the turn");
+
+    value = world();
+    value.players[0].state.tool_amounts[10] = 1;
+    rich4::GameSession other(value, 20);
+    require(other.use_tool(11, 0x8002, 5) &&
+                other.world().players[1].state.node_id == 5 &&
+                other.phase() == rich4::GamePhase::human_ready && other.roll_dice(),
+            "teleporting another player must leave the user's roll available");
+
+    value = world();
+    value.players[0].state.tool_amounts[10] = 1;
+    value.players[0].state.cards[0] = 1;
+    value.players[0].state.tool_amounts[9] = 1;
+    value.objects[0].kind = 1;
+    value.objects[0].node_id = 1;
+    value.objects[0].attached_player = 1;
+    rich4::GameSession carrier(value, 21);
+    require(carrier.use_tool(11, 0x8100, 5) &&
+                carrier.world().players[0].state.node_id == 5 &&
+                carrier.phase() == rich4::GamePhase::advancing_turn,
+            "teleporting an attached object must also settle the actual carrier");
+}
+
 void service_and_auction_choices() {
     auto value = world();
     for (auto &node : value.nodes)
@@ -823,8 +881,12 @@ void native_actions_and_money_spinner() {
     value.players[0].state.tool_amounts[9] = 1;
     value.players[0].state.tool_amounts[10] = 1;
     rich4::GameSession teleport(value, 5);
-    require(teleport.use_tool(11, 0x8001, 5) && teleport.world().players[0].state.node_id == 5,
-            "self teleport failed");
+    require(teleport.use_tool(11, 0x8001, 5) && teleport.world().players[0].state.node_id == 5 &&
+                teleport.phase() == rich4::GamePhase::advancing_turn && !teleport.roll_dice(),
+            "self teleport must end the movement opportunity");
+    until(teleport, [&] {
+        return teleport.completed_days() >= 1 && teleport.phase() == rich4::GamePhase::human_ready;
+    });
     require(teleport.use_tool(10) && teleport.world().players[0].state.node_id == 1 &&
                 teleport.world().players[0].state.tool_amounts[10] == 1 &&
                 teleport.world().players[0].state.tool_amounts[9] == 0,
@@ -1341,6 +1403,7 @@ int main() {
         monthly_settlement();
         save_reload_and_deferred_spawn();
         facilities_events_and_rescue();
+        teleport_landing_rules();
         service_and_auction_choices();
         god_spinner_presentation_order();
         native_actions_and_money_spinner();
