@@ -231,6 +231,24 @@ void apply_pending_actors(std::vector<board::PlayerSprite> &players, const World
     }
 }
 
+void restore_pre_movie_property(std::vector<board::PropertyState> &lands,
+                                std::vector<board::PropertyState> &facilities, const EffectEvent &effect) {
+    if (!effect.has_previous_property)
+        return;
+    const bool facility = effect.property > 4000 && effect.property < 6000;
+    if (!facility && !(effect.property > 2000 && effect.property < 4000))
+        return;
+    auto &list = facility ? facilities : lands;
+    const auto id = std::uint32_t(effect.property - (facility ? 4000 : 2000));
+    for (auto &plot : list)
+        if (plot.id == id) {
+            plot.owner = effect.previous_owner;
+            plot.level = effect.previous_level;
+            plot.type = effect.previous_type;
+            break;
+        }
+}
+
 void EffectPlayer::remember(const World &world, const void *owner, std::uint64_t ticks) {
     if (active())
         return;
@@ -407,6 +425,16 @@ void EffectPlayer::draw(graphics::Image &canvas, board::Renderer &board, const W
             scene = make_scene(world, ticks, costumes_);
         } else
             scene = *snapshot_;
+        // Multiple property effects may have been computed in one core tick.
+        // Reconstruct the property state from the effects not yet committed,
+        // rather than exposing the final building before its construction,
+        // collapse or explosion FLC. This also works after snapshot_ is reset.
+        for (auto it = future_effects_.rbegin(); it != future_effects_.rend(); ++it)
+            restore_pre_movie_property(scene.lands, scene.facilities, *it);
+        for (auto it = queue_.rbegin(); it != queue_.rend(); ++it)
+            restore_pre_movie_property(scene.lands, scene.facilities, *it);
+        if (!committed)
+            restore_pre_movie_property(scene.lands, scene.facilities, event);
         { // movies still to come that take a player away or bring them back (see PendingActor)
             auto pending = pending_actors_;
             for (const auto &later : queue_)
@@ -450,18 +478,6 @@ void EffectPlayer::draw(graphics::Image &canvas, board::Renderer &board, const W
                 sprite->animation_frame = static_cast<std::uint8_t>(pose_frame);
                 scene.players.push_back(*sprite);
             }
-        }
-        if (truck && !committed) { // the building still stands until the swing's frame 3
-            const bool facility = event.property > 4000;
-            auto &properties = facility ? scene.facilities : scene.lands;
-            const auto id = static_cast<std::uint32_t>(event.property - (facility ? 4000 : 2000));
-            std::erase_if(properties, [&](const auto &property) { return property.id == id; });
-            std::uint8_t owner = 0;
-            if (facility && id < world.facilities.size())
-                owner = world.facilities[id].owner_code;
-            else if (!facility && id < world.lands.size())
-                owner = world.lands[id].economy.owner_code;
-            properties.push_back({id, owner, event.previous_level, event.previous_type});
         }
         board.render(canvas, scene.view(), camera);
 
