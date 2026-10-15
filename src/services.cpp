@@ -185,7 +185,7 @@ bool sell_tool(World &world, Shop &shop, std::size_t slot, std::uint8_t id, unsi
     const unsigned price = tool_prices[id - 1] * quantity;
     for (unsigned i = 0; i < quantity; ++i)
         (void)consume_tool(player.tool_amounts, world.tool_supply, id);
-    player.points = static_cast<std::uint16_t>(player.points + price * 9U / 10U);
+    mod::credit_points(player.points, price * 9U / 10U);
     shop.revenue = add(shop.revenue, static_cast<std::int32_t>(price));
     return true;
 }
@@ -337,9 +337,8 @@ bool apply_magic(World &world, Random &random, std::size_t actor, std::span<cons
             }
             player.state.traffic_method = 0;
             player.state.dice_count = 1;
-            player.state.points = static_cast<std::uint16_t>(
-                player.state.points +
-                sell_stored_tools(player.state.tool_amounts, world.tool_supply, tool_prices));
+            mod::credit_points(player.state.points,
+                               sell_stored_tools(player.state.tool_amounts, world.tool_supply, tool_prices));
             break;
         }
         case 9:
