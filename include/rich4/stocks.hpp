@@ -36,7 +36,7 @@ PurchaseResult buy_stock(World &world, std::size_t player, std::size_t stock, st
                          bool from_market);
 
 // Original 0x428ec5: percentage movement, price-band tick rounding, and bounds
-// [1,9999]. Finite input price domain [0,10000], movement domain [-10,10].
+// [1,999999] in MOD. Finite input price domain [0,999999], movement domain [-10,10].
 [[nodiscard]] float adjusted_price(float previous_price, float percent);
 
 // Original 0x428e23. Player and stock indices are zero based; amount must be
