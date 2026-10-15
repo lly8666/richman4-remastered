@@ -119,7 +119,10 @@ struct GameSession::Impl {
                 throw std::invalid_argument("player node outside native world");
         // Imported vanilla saves may contain an inflated price index. Normalize
         // before the first turn and retain 1 through time-machine restores.
-        world.header.price_index = mod::fixed_price_index;
+        // Synthetic unbacked C++ test worlds retain their deliberately
+        // configured index; every real new game / loaded DAT has backing.
+        if (world.loaded_from_original_data())
+            world.header.price_index = mod::fixed_price_index;
         if (!world.has_initial_random_state() && check_game_end())
             return;
         if (world.has_initial_random_state()) {
