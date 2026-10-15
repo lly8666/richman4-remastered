@@ -172,7 +172,7 @@ void tool_and_card_effects() {
                 thrown->target.x == roadblock.world().nodes[5].x,
             "roadblock throw effect");
     require(roadblock.random_state() == before, "throw effect consumed randomness");
-    // Missile: area damage first, then the movie centred on the target.
+    // Missile: movie starts before the resulting hospital/damage presentation; rule mutation is synchronous.
     value = world();
     value.players[0].state.tool_amounts[6] = 1;
     rich4::GameSession missile(value, 5);
@@ -225,6 +225,40 @@ void tool_and_card_effects() {
     const auto picture = find(effects, rich4::EffectKind::demolish);
     require(picture != effects.end() && picture->property == targets[0].value && picture->target.y == 160,
             "demolish effect");
+}
+// Missile impact is visibly committed on film frame 9. The actor can already be
+// hospitalised in the rule state, but the presentation must play the missile before
+// its ambulance and hospital announcement. Check both blast variants.
+void missile_presentation_order() {
+    for (unsigned tool : {7U, 13U}) {
+        auto value = world();
+        value.players[0].state.tool_amounts[tool - 1] = 1;
+        // The synthetic map has no hospital until one is assigned. It is far enough
+        // from the target not to interfere with the struck player's initial location.
+        value.nodes[8].flags = (value.nodes[8].flags & ~0xffU) | 5U;
+        rich4::GameSession game(std::move(value), 8);
+        require(game.use_tool(tool, 0x8002), "targeted missile should apply");
+        const auto events = game.drain_events();
+        const auto effects = game.drain_effects();
+        const auto kind = tool == 7 ? rich4::EffectKind::missile : rich4::EffectKind::nuclear_missile;
+        const auto movie = std::find_if(effects.begin(), effects.end(),
+                                         [kind](const auto &event) { return event.kind == kind; });
+        require(movie != effects.end(), "blast movie missing from presentation");
+        const auto ambulance = std::find_if(effects.begin(), effects.end(), [](const auto &event) {
+            return event.kind == rich4::EffectKind::ambulance;
+        });
+        require(ambulance != effects.end() && movie < ambulance &&
+                    movie->after_events <= ambulance->after_events,
+                "missile must precede the ambulance in the presentation queue");
+        const auto hospital = std::find_if(events.begin(), events.end(), [](const auto &event) {
+            return event.message.find("住院") != std::string::npos;
+        });
+        require(hospital != events.end() &&
+                    movie->after_events <= std::size_t(hospital - events.begin()),
+                "missile must precede hospital settlement announcement");
+        require(game.world().players[1].status.days_in_hospital > 0,
+                "missile must still hospitalize the struck player");
+    }
 }
 void property_and_rent() {
     auto value = world();
@@ -1396,6 +1430,7 @@ int main() {
         dice_effect_is_presentation_only();
         parachute_marks_a_spawned_player();
         tool_and_card_effects();
+        missile_presentation_order();
         property_and_rent();
         alliance_rent();
         bank_and_failure();
