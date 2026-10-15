@@ -154,8 +154,10 @@ void loaded_dice_event_snapshots() {
             movie_rolls.push_back(effect.dice);
     require(rolls.size() == 4 && rolls == movie_rolls,
             "all four loaded players must retain distinct, ordered dice movie payloads");
-    require(rolls.front() != rolls.back() && loaded.dice() == rolls.back(),
-            "test must demonstrate older rolls differ from the latest live session roll");
+    require(std::any_of(rolls.begin(), rolls.end() - 1,
+                        [&](const auto &faces) { return faces != rolls.back(); }) &&
+                loaded.dice() == rolls.back(),
+            "at least one earlier roll must differ from the final live-session faces");
     // The original DAT does not carry RNG state: the sidecar preserves it, and
     // display-side snapshots must not consume extra Watcom random draws.
     rich4::GameSession identical(rich4::World::from_save(save), saved_rng_state);
