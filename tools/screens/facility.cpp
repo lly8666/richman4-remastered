@@ -97,7 +97,11 @@ void Picker::draw(screens::Host &host, const GameDecision &decision, const std::
         const auto selected_index = selected_ ? option_with_value(decision, 9 + *selected_) : std::nullopt;
         if (selected_index)
             messages::draw_text(frame, decision.options[*selected_index].label, 220, 154, 4, box_style);
-        const graphics::Rect confirm_rect{124, 386, 252, 426};
+        // The Panel 11 tool tray occupies x=14..426, y=279..459. The
+        // previous confirmation buttons were painted *inside* its second and
+        // third rows, covering original textures and labels on Android.
+        // Put the touch-only controls in the unused right-hand sidebar.
+        const graphics::Rect confirm_rect{458, 305, 604, 350};
         frame.button(confirm_button, confirm_rect, "確定", [] {}, selected_index.has_value());
         frame.buttons.pop_back();
         screens::hit(host, confirm_button, confirm_rect, screens::click_sound,
@@ -107,7 +111,7 @@ void Picker::draw(screens::Host &host, const GameDecision &decision, const std::
                      },
                      selected_index.has_value());
         if (const auto postpone = option_with_value(decision, 0)) {
-            const graphics::Rect postpone_rect{266, 386, 414, 426};
+            const graphics::Rect postpone_rect{458, 367, 604, 412};
             frame.button(210 + int(*postpone), postpone_rect, "稍後研究", [] {});
             frame.buttons.pop_back();
             screens::hit(host, 210 + int(*postpone), postpone_rect, screens::cancel_sound,
