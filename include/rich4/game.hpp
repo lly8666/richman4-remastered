@@ -185,11 +185,6 @@ struct GameEvent {
     // Presentation-only sound cue (Effect.mkf index) the app plays when it presents this event,
     // e.g. 54 god leaves, 35/36 gift pickups, 56 forced turn-around, 15 工程車 demolition swing.
     std::optional<std::uint8_t> sound = std::nullopt;
-    // Snapshot the actual die faces when dice_rolled is emitted. One tick may compute
-    // several AI turns before the front end presents the older events, so a live
-    // GameSession::dice() query would incorrectly show the latest player's roll.
-    // Presentation only: not encoded in the original DAT save or used by game rules.
-    std::vector<std::uint8_t> dice{};
     bool operator==(const GameEvent &) const = default; // pre-choice presentation replay matching
 };
 
