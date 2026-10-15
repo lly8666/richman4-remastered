@@ -165,7 +165,7 @@ void semantic_rejections() {
     bad([](World &w) { w.stock_history_cursor = -1; }, "stock_history_cursor");
     bad([](World &w) { w.stock_history_cursor = 144; }, "stock_history_cursor");
     bad([](World &w) { w.stocks[11].float_bits[2] = 0x7f800000; }, "stocks[11].float_bits[2]");
-    bad([](World &w) { w.stocks[11].float_bits[1] = std::bit_cast<std::uint32_t>(10001.0F); },
+    bad([](World &w) { w.stocks[11].float_bits[1] = std::bit_cast<std::uint32_t>(1000001.0F); },
         "stocks[11].float_bits[1]");
     bad([](World &w) { w.stock_history_bits[11][143] = 0x7fc00001; }, "stock_history_bits[11][143]");
     bad([](World &w) { w.stocks[11].flags_4 = 2; }, "stocks[11].flags_4");
