@@ -54,6 +54,11 @@ std::vector<board::ObjectSprite> object_sprites(const World &world, const std::v
 void hide_objects(std::vector<board::ObjectSprite> &objects,
                   const std::function<bool(board::Point, std::uint8_t)> &hidden);
 SceneData make_scene(const World &world, std::uint64_t ticks, const std::array<std::uint8_t, 4> &costumes = {});
+// Reverse one pending visual building mutation, without rolling back rule state.
+// Apply pending movies in reverse chronological order to reconstruct the picture
+// that belongs before their original on-screen commit frames.
+void restore_pre_movie_property(std::vector<board::PropertyState> &lands,
+                                std::vector<board::PropertyState> &facilities, const EffectEvent &effect);
 
 // Per-kind playback table (values from docs/ui/effects.md §1-§6).
 struct EffectSpec {
@@ -109,6 +114,9 @@ class EffectPlayer {
     void enqueue(std::vector<EffectEvent> effects, const void *owner);
     // Overrides from effects the app has not handed over yet (its presentation queue), per frame.
     void set_pending_actors(std::vector<PendingActor> pending) { pending_actors_ = std::move(pending); }
+    // Property-changing movies still waiting in the application's presentation
+    // queue (not yet handed to this player); only metadata is copied.
+    void set_future_effects(std::vector<EffectEvent> pending) { future_effects_ = std::move(pending); }
     [[nodiscard]] bool active() const noexcept { return current_.has_value() || !queue_.empty(); }
     // The world already holds a thrown roadblock/mine/time bomb on its node while the throw is still
     // queued or flying; the original only shows it after the throw lands (_rich4_animate_object
@@ -151,6 +159,7 @@ class EffectPlayer {
     std::map<std::pair<char, int>, std::vector<std::uint8_t>> movies_;
     std::array<std::uint8_t, 4> costumes_{};
     std::vector<PendingActor> pending_actors_;
+    std::vector<EffectEvent> future_effects_;
 };
 
 } // namespace rich4::native
