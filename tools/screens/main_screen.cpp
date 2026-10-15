@@ -171,10 +171,7 @@ void MainScreen::on_event(const GameEvent &event, const GameSession &session, Ar
     if (event.kind != GameEventKind::dice_rolled)
         return;
     free_scroll_.reset();
-    // The core can have advanced through several AI rolls before this event is shown.
-    // Never pull faces from the live session here: it describes the LAST roll, not
-    // necessarily the player whose dice_rolled event we are presenting.
-    dice_faces_ = event.dice;
+    dice_faces_ = session.dice();
     if (dice_faces_.empty() || event.player >= session.world().players.size()) {
         dice_active_ = false;
         return;
