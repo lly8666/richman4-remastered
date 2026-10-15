@@ -242,11 +242,15 @@ Result attach(World &world, Random &random, std::size_t actor, std::uint16_t id,
             income_voice(world, random, callbacks, actor, amount);
     } else if (kind == 3 || kind == 4) {
         unsigned worth = 0;
+        std::array<std::uint8_t, 2> gained{};
         for (unsigned i = 0; i < (kind == 3 ? 1U : 2U); ++i) {
             const auto card = services::receive_random_card(world, random, actor);
+            gained[i] = card;
             if (card)
                 worth += services::card_prices[card - 1];
         }
+        if ((gained[0] || gained[1]) && callbacks.cards_changed)
+            callbacks.cards_changed(actor, kind, gained[0], gained[1], 0);
         // Original speaks for current_player even when attach was called on another slot.
         prize_voice(random, callbacks, world.header.current_player, worth);
     } else if (kind == 6) {
@@ -256,10 +260,17 @@ Result attach(World &world, Random &random, std::size_t actor, std::uint16_t id,
         if (count) {
             const auto card = player.state.cards[random.next() % count];
             (void)consume_card(player.state.cards, world.card_supply, card);
+            if (callbacks.cards_changed)
+                callbacks.cards_changed(actor, kind, card, 0, 1);
         }
     } else if (kind == 8) {
+        const auto before = card_count(player.state.cards);
         (void)drop_half_cards(player.state.cards, world.card_supply);
+        const auto removed = before - card_count(player.state.cards);
+        if (removed && callbacks.cards_changed)
+            callbacks.cards_changed(actor, kind, 0, 0, removed);
     } else if (kind == 15) {
+        const auto before = card_count(player.state.cards);
         const auto traffic = player.state.traffic_method & 3U;
         if (traffic)
             ++player.state.tool_amounts[traffic == 3 ? 11 : traffic + 3];
@@ -268,6 +279,8 @@ Result attach(World &world, Random &random, std::size_t actor, std::uint16_t id,
         // Original ignores both sell-all return values here: no point credit.
         (void)sell_stored_tools(player.state.tool_amounts, world.tool_supply, services::tool_prices);
         (void)sell_all_cards(player.state.cards, world.card_supply, services::card_prices);
+        if (before && callbacks.cards_changed)
+            callbacks.cards_changed(actor, kind, 0, 0, before);
     }
     return {true, true, false, "神明附身"};
 }
