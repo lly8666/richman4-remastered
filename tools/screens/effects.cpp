@@ -36,9 +36,16 @@ board::PlayerSprite player_sprite(const World &world, std::size_t slot, std::uin
 } // namespace
 
 std::vector<board::ObjectSprite> object_sprites(const World &world, const std::vector<board::PlayerSprite> &players,
-                                                std::uint8_t frame) {
+                                                std::uint8_t frame, std::optional<std::size_t> hidden_arriving_god) {
     std::vector<board::ObjectSprite> objects;
-    for (const auto &object : world.objects) {
+    for (std::size_t id = 0; id < world.objects.size(); ++id) {
+        const auto &object = world.objects[id];
+        // The rule attaches immediately, but the carried god must not be drawn
+        // until the arrival movie and caption have finished.
+        if (hidden_arriving_god && object.attached_player == *hidden_arriving_god + 1U &&
+            *hidden_arriving_god < world.players.size() &&
+            world.players[*hidden_arriving_god].status.god_info == id + 1U)
+            continue;
         if (object.attached_player) { // drawn at the carrier, offset behind it (board_renderer)
             const auto carrier = std::size_t(object.attached_player - 1U);
             for (const auto &player : players)
@@ -70,7 +77,8 @@ std::vector<board::PropertyOwner> property_owners(const World &world) {
     return owners;
 }
 
-SceneData make_scene(const World &world, std::uint64_t ticks, const std::array<std::uint8_t, 4> &costumes) {
+SceneData make_scene(const World &world, std::uint64_t ticks, const std::array<std::uint8_t, 4> &costumes,
+                     std::optional<std::size_t> hidden_arriving_god) {
     SceneData scene;
     scene.owners = property_owners(world);
     const auto frame = static_cast<std::uint8_t>((ticks / 120) % 6);
@@ -87,7 +95,7 @@ SceneData make_scene(const World &world, std::uint64_t ticks, const std::array<s
         scene.facilities.push_back({facility.id, facility.owner_code, facility.level, facility.facility_type,
                                     facility.temporary_state});
     }
-    scene.objects = object_sprites(world, scene.players, frame);
+    scene.objects = object_sprites(world, scene.players, frame, hidden_arriving_god);
     for (std::size_t index = 0; index < world.special_actors.size(); ++index) {
         const auto &actor = world.special_actors[index];
         if (actor.inactive_state || !actor.node_id || actor.node_id >= world.nodes.size())
@@ -271,6 +279,17 @@ void EffectPlayer::enqueue(std::vector<EffectEvent> effects, const void *owner) 
             queue_.push_back(std::move(effect));
 }
 
+std::optional<std::size_t> EffectPlayer::arriving_god_player() const noexcept {
+    if (current_ && current_->event.kind == EffectKind::god_appear)
+        return current_->event.player;
+    for (const auto &effect : queue_)
+        if (effect.kind == EffectKind::god_appear)
+            return effect.player;
+    if (lingering_ && lingering_->event.kind == EffectKind::god_appear)
+        return lingering_->event.player;
+    return std::nullopt;
+}
+
 bool EffectPlayer::throw_pending(board::Point node, std::uint8_t kind) const {
     const auto matches = [&](const EffectEvent &effect) {
         return effect.kind == EffectKind::object_throw && effect.object_kind == kind && effect.target.x == node.x &&
@@ -285,7 +304,9 @@ void EffectPlayer::draw_linger(graphics::Image &canvas, board::Renderer &board, 
         return;
     const auto &play = *lingering_;
     const board::Camera camera{{play.event.target.x, play.event.target.y}, static_cast<std::uint8_t>(rotation & 7U)};
-    board.render(canvas, make_scene(world, ticks, costumes_).view(), camera);
+    board.render(canvas, make_scene(world, ticks, costumes_,
+                                    play.event.kind == EffectKind::god_appear
+                                        ? std::optional<std::size_t>(play.event.player) : std::nullopt).view(), camera);
     graphics::blit(canvas, play.frame, play.spec.x, play.spec.y, {0, 40, 440, 480});
 }
 
@@ -422,7 +443,9 @@ void EffectPlayer::draw(graphics::Image &canvas, board::Renderer &board, const W
         if (committed || !snapshot_) {
             if (committed)
                 snapshot_.reset(); // later effects of the same batch use the live world (spec §9.4)
-            scene = make_scene(world, ticks, costumes_);
+            scene = make_scene(world, ticks, costumes_,
+                               event.kind == EffectKind::god_appear
+                                   ? std::optional<std::size_t>(event.player) : std::nullopt);
         } else
             scene = *snapshot_;
         // Multiple property effects may have been computed in one core tick.
@@ -444,7 +467,9 @@ void EffectPlayer::draw(graphics::Image &canvas, board::Renderer &board, const W
             if (!pending.empty()) {
                 const auto frame = static_cast<std::uint8_t>((ticks / 120) % 6);
                 apply_pending_actors(scene.players, world, pending, frame, costumes_);
-                scene.objects = object_sprites(world, scene.players, frame);
+                scene.objects = object_sprites(world, scene.players, frame,
+                                               event.kind == EffectKind::god_appear
+                                                   ? std::optional<std::size_t>(event.player) : std::nullopt);
             }
         }
         hide_objects(scene.objects, [this](board::Point node, std::uint8_t kind) { return throw_pending(node, kind); });
