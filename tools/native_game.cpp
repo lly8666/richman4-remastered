@@ -1847,6 +1847,7 @@ class Application {
         if (!session_->pending_decision()) {
             items_.end_visits();
             decision_key_.clear();
+            facility_picker_.select(std::nullopt, {}); // next picker must not inherit an earlier selection
             selected_target_.reset();
             target_center_.reset();
             return;
@@ -1860,6 +1861,7 @@ class Application {
         end_amount_edit();
         pad_.close(); // a number pad never outlives the decision it was opened for
         decision_key_ = std::move(key);
+        facility_picker_.select(std::nullopt, {});
         decision_page_ = 0;
         selected_target_.reset();
         target_center_.reset();
