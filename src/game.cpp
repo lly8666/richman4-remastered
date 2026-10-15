@@ -2834,10 +2834,14 @@ struct GameSession::Impl {
         };
         callbacks.blast = [this](auto code, bool nuclear, auto slot) {
             const auto point = instance_position(code);
-            area_damage(static_cast<std::uint16_t>(point.x), static_cast<std::uint16_t>(point.y),
-                        nuclear ? 1 : 0, true, static_cast<int>(slot), nuclear ? -1 : 100);
+            // The original commits the blast at movie frame 9, then presents hospital
+            // transfers and damage notices. Queue the movie BEFORE area_damage emits
+            // those follow-up events/effects; the rules still mutate synchronously.
+            // EffectPlayer retains the pre-hit board until the movie's commit frame.
             effect(nuclear ? EffectKind::nuclear_missile : EffectKind::missile, slot, {point.x, point.y},
                    code > 2000 && code < 6000 ? code : 0);
+            area_damage(static_cast<std::uint16_t>(point.x), static_cast<std::uint16_t>(point.y),
+                        nuclear ? 1 : 0, true, static_cast<int>(slot), nuclear ? -1 : 100);
         };
         return callbacks;
     }
