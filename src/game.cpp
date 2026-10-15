@@ -1003,6 +1003,39 @@ struct GameSession::Impl {
                        world.header.price_index);
         return static_cast<std::int64_t>(player().cash) + player().bank_balance - cost > reserve;
     }
+    // An institute produces the chosen tool after five in-game days. Original save bytes
+    // +0x1d/+0x1e store the product index and days remaining, so saves survive reloads.
+    void start_research(std::size_t id, unsigned tool_id) {
+        auto &facility = world.facilities.at(id);
+        if (facility.facility_type != 4 || facility.level == 0 || tool_id < 9 ||
+            tool_id >= 9 + std::min<unsigned>(5, facility.level) || facility.flags_30)
+            throw std::logic_error("invalid research institute selection");
+        facility.research_product = static_cast<std::uint8_t>(tool_id - 9);
+        facility.flags_30 = 5;
+        emit(GameEventKind::notice, "研究所開始研發" + std::string(services::tool_names.at(tool_id - 1)), 5);
+    }
+    void choose_research(std::size_t id) {
+        auto &facility = world.facilities.at(id);
+        if (facility.owner_code != actor() + 1 || facility.facility_type != 4 ||
+            !facility.level || facility.flags_30) {
+            finish_turn();
+            return;
+        }
+        const auto count = std::min<unsigned>(facility.level, 5);
+        if (!human()) {
+            start_research(id, 9 + static_cast<unsigned>(random.next()) % count);
+            finish_turn();
+            return;
+        }
+        std::vector<DecisionOption> options;
+        for (unsigned n = 0; n < count; ++n)
+            options.push_back({std::string(services::tool_names.at(8 + n)),
+                               static_cast<std::int32_t>(9 + n)});
+        options.push_back({"稍後研究", 0});
+        decision = GameDecision{DecisionKind::research_tool, actor(), static_cast<std::uint16_t>(id),
+                                0, "研究所：請選擇研發道具", std::move(options)};
+        set_phase(GamePhase::awaiting_decision);
+    }
     void buy_facility(std::size_t id, int operation, unsigned type = 0) {
         auto &facility = world.facilities.at(id);
         const auto cost = multiply32(operation == 2 ? facility.price_per_level() : facility.land_price,
@@ -1031,7 +1064,10 @@ struct GameSession::Impl {
             sparkle_if_top_floor(static_cast<std::uint16_t>(4000 + id), 4);
         if (facility.level == 5)
             voice(actor(), 15);
-        finish_turn();
+        if (operation && facility.facility_type == 4)
+            choose_research(id); // first build and later upgrades expose the touch picker
+        else
+            finish_turn();
     }
     static int roulette_value(unsigned kind, unsigned cursor) {
         static constexpr int rows[4][12] = {{1, -1, 0, -1, 1, -1, 2, -1, 3, -1, 2, -1},
@@ -1119,8 +1155,15 @@ struct GameSession::Impl {
             }
             const int operation = !entry.owner_code ? 0 : entry.level == 0 ? 1 : 2;
             static constexpr unsigned maximum[5]{1, 5, 5, 1, 5};
-            if (entry.facility_type >= 5 || (operation == 2 && entry.level >= maximum[entry.facility_type])) {
+            if (entry.facility_type >= 5) {
                 finish_turn();
+                return;
+            }
+            if (operation == 2 && entry.level >= maximum[entry.facility_type]) {
+                if (entry.facility_type == 4)
+                    choose_research(id); // max-level laboratory can still start a new project
+                else
+                    finish_turn();
                 return;
             }
             const auto cost = multiply32(operation == 2 ? entry.price_per_level() : entry.land_price,
@@ -1129,7 +1172,10 @@ struct GameSession::Impl {
                 if (cost >= 0)
                     announce(Announcement::cash_insufficient, actor()).property =
                         static_cast<std::uint16_t>(4000 + id);
-                finish_turn();
+                if (operation == 2 && entry.facility_type == 4)
+                    choose_research(id); // no cash for an upgrade must not disable research
+                else
+                    finish_turn();
                 return;
             }
             if (human()) {
@@ -3647,6 +3693,30 @@ struct GameSession::Impl {
             world.news_effect_days = 0;
         else if (world.news_effect_days && --world.news_effect_days == 0)
             world.news_effect_days = 0x80;
+        // Resolve each laboratory's project exactly once per calendar day (even when
+        // nobody lands on it). Research is never advanced by a screen redraw or a turn.
+        for (std::size_t id = 1; id < world.facilities.size(); ++id) {
+            auto &facility = world.facilities[id];
+            if (facility.facility_type != 4 || !facility.flags_30)
+                continue;
+            if (!facility.owner_code || facility.owner_code > world.players.size() ||
+                !facility.level || facility.research_product >= std::min<unsigned>(facility.level, 5)) {
+                facility.flags_30 = 0; // demolished / downgraded below the project's prerequisite
+                facility.research_product = 0;
+                continue;
+            }
+            if (--facility.flags_30 == 0) {
+                const auto tool_id = static_cast<std::uint8_t>(9 + facility.research_product);
+                const auto owner = facility.owner_code - 1U;
+                const bool received = receive_tool(world.players[owner].state.tool_amounts,
+                                                   world.tool_supply, tool_id);
+                events.push_back({GameEventKind::notice, owner, 0,
+                                  world.players[owner].state.node_id,
+                                  received ? "研究所研發完成：" + std::string(services::tool_names[tool_id - 1])
+                                           : "研究所研發完成，但道具已達持有上限"});
+                facility.research_product = 0;
+            }
+        }
         for (auto &stock : world.stocks) {
             if (stock.suspension_days)
                 --stock.suspension_days;
@@ -4005,14 +4075,28 @@ bool GameSession::respond(std::size_t option, std::int32_t amount) {
         const auto multiplier = Impl::roulette_value(kind, impl_->roulette_cursor + 12);
         impl_->stopped_roulette_effect(decision, multiplier);
         impl_->charge_facility(decision.land_id, multiplier);
+    } else if (decision.kind == DecisionKind::research_tool) {
+        const auto &facility = impl_->world.facilities.at(decision.land_id);
+        if (value != 0 && (value < 9 || value >= 9 + std::min<unsigned>(5, facility.level) ||
+                           facility.facility_type != 4 || facility.owner_code != impl_->actor() + 1 ||
+                           facility.flags_30))
+            return false;
+        impl_->decision.reset();
+        if (value)
+            impl_->start_research(decision.land_id, static_cast<unsigned>(value));
+        impl_->finish_turn();
     } else if (decision.kind == DecisionKind::buy_facility ||
                decision.kind == DecisionKind::construct_facility ||
                decision.kind == DecisionKind::upgrade_facility) {
         // Buying/upgrading: 0 declines. Building has no decline in the original (fcn_00440aac without
         // the cancellable flag); value 0 is a 公園 there.
-        if (value == 0 && decision.kind != DecisionKind::construct_facility)
-            impl_->finish_turn();
-        else
+        if (value == 0 && decision.kind != DecisionKind::construct_facility) {
+            if (decision.kind == DecisionKind::upgrade_facility &&
+                impl_->world.facilities.at(decision.land_id).facility_type == 4)
+                impl_->choose_research(decision.land_id);
+            else
+                impl_->finish_turn();
+        } else
             impl_->buy_facility(decision.land_id,
                                 decision.kind == DecisionKind::buy_facility         ? 0
                                 : decision.kind == DecisionKind::construct_facility ? 1
