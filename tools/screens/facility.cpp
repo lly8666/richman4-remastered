@@ -74,8 +74,12 @@ void Picker::draw(screens::Host &host, const GameDecision &decision, const std::
             const auto index = option_with_value(decision, 9 + slot);
             const int x = tray_x + 6 + slot * 80, y = tray_y + 6;
             const graphics::Rect cell{x, y, x + 78, y + 54};
+            // Inventory tools sit 16 px left to leave room for an "×N" count.
+            // The research chooser has no counts: put the sprite's origin at the
+            // centre of the 78x54 selection cell instead of the inventory anchor.
+            // This also aligns the icon with its yellow outline and touch hitbox.
             graphics::blit(frame.canvas, frame.artwork.frame('p', 11, std::size_t(10 + slot)),
-                           tray_x + 29 + slot * 80, tray_y + 33);
+                           x + 39, y + 27);
             if (!index) {
                 screens::darken(frame.canvas, cell, -16); // higher-level tools are visible but locked
                 continue;
