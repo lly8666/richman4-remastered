@@ -166,7 +166,7 @@ enum class SpeechTable : std::uint8_t { event, card, tool };
 struct GameEvent {
     GameEventKind kind;
     std::size_t player;
-    std::int32_t amount = 0;
+    std::int64_t amount = 0; // MOD large stock/financial event amounts
     std::uint16_t node = 0;
     std::string message;
     std::optional<std::uint8_t> voice_category = std::nullopt;
