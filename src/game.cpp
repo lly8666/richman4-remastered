@@ -1609,7 +1609,26 @@ struct GameSession::Impl {
     std::int64_t pay(int payer_code, int recipient_code, std::int64_t requested, unsigned flags) {
         if (requested <= 0)
             return 0;
+        // Establish the maximum payable amount before touching either side.
+        // A financial event can request >2^31 after share/tax scaling.
         auto paid = requested;
+        if (payer_code >= 0 && payer_code <= 100) {
+            const auto &payer = world.players.at(static_cast<std::size_t>(payer_code)).state;
+            const auto available = std::max<std::int64_t>(0, mod::money_add(payer.cash, payer.bank_balance));
+            paid = std::min(requested, available);
+        }
+        // Preflight recipient funds ahead of debiting the source or triggering
+        // bankruptcy. Overflow must never leave an unbalanced transfer.
+        if (recipient_code == -1)
+            (void)mod::money_add(world.public_fund, paid);
+        else if (recipient_code > 100) {
+            const auto &company = world.commercials.at(static_cast<std::size_t>(recipient_code - 100));
+            (void)mod::money_add(company.funds, paid);
+            (void)mod::money_add(company.funds_change, paid);
+        } else {
+            const auto &recipient = world.players.at(static_cast<std::size_t>(recipient_code)).state;
+            (void)mod::money_add(flags & 1U ? recipient.cash : recipient.bank_balance, paid);
+        }
         if (payer_code > 100) {
             auto &company = world.commercials.at(static_cast<std::size_t>(payer_code - 100));
             const auto next_funds = mod::money_sub(company.funds, requested);
@@ -1619,10 +1638,7 @@ struct GameSession::Impl {
         } else {
             const auto slot = static_cast<std::size_t>(payer_code);
             auto &payer = world.players.at(slot).state;
-            const auto available =
-                std::max<std::int64_t>(0, static_cast<std::int64_t>(payer.cash) + payer.bank_balance);
-            paid = std::min<std::int64_t>(requested, available);
-            auto &first = flags & 4U ? payer.bank_balance : payer.cash;
+             auto &first = flags & 4U ? payer.bank_balance : payer.cash;
             auto &second = flags & 4U ? payer.cash : payer.bank_balance;
             const auto first_payment = std::min<std::int64_t>(std::max(first, std::int64_t{0}), paid);
             first = subtract32(first, first_payment);
@@ -3295,9 +3311,9 @@ struct GameSession::Impl {
         emit(GameEventKind::bank_transfer, "贷款已存入银行", amount);
         return true;
     }
-    bool repay(std::int32_t amount, bool clear_due_date) {
+    bool repay(std::int64_t amount, bool clear_due_date) {
         if (amount <= 0 || amount > player().loan ||
-            static_cast<std::int64_t>(player().cash) + player().bank_balance < amount)
+            mod::money_add(player().cash, player().bank_balance) < amount)
             return false;
         const auto from_bank = std::min<std::int64_t>(std::max(player().bank_balance, std::int64_t{0}), amount);
         player().bank_balance = subtract32(player().bank_balance, from_bank);
@@ -3358,8 +3374,10 @@ struct GameSession::Impl {
         if (borrowing) {
             if (status().days_bank_no_loans || amount > financing_limit())
                 return false;
-            player().bank_balance = add32(player().bank_balance, amount);
-            player().special_finance = add32(player().special_finance, amount);
+            const auto next_bank = mod::money_add(player().bank_balance, amount);
+            const auto next_financing = mod::money_add(player().special_finance, amount);
+            player().bank_balance = next_bank;
+            player().special_finance = next_financing;
         } else {
             if (amount > player().special_finance || amount > add32(player().cash, player().bank_balance))
                 return false;
@@ -4186,11 +4204,15 @@ bool GameSession::respond(std::size_t option, std::int32_t amount) {
             return result;
         }
         if (value == 1 && amount <= player.cash) {
-            player.cash = subtract32(player.cash, amount);
-            player.bank_balance = add32(player.bank_balance, amount);
+            const auto new_cash = mod::money_sub(player.cash, amount);
+            const auto new_bank = mod::money_add(player.bank_balance, amount);
+            player.cash = new_cash;
+            player.bank_balance = new_bank;
         } else if (value == 2 && amount <= player.bank_balance) {
-            player.bank_balance = subtract32(player.bank_balance, amount);
-            player.cash = add32(player.cash, amount);
+            const auto new_bank = mod::money_sub(player.bank_balance, amount);
+            const auto new_cash = mod::money_add(player.cash, amount);
+            player.bank_balance = new_bank;
+            player.cash = new_cash;
         } else
             return false;
         impl_->emit(GameEventKind::bank_transfer, value == 1 ? "存款完成" : "提款完成", amount);
