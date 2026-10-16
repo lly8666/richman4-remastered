@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "rich4/auction.hpp"
+#include "rich4/mod_rules.hpp"
 #include "rich4/calendar.hpp"
 
 #include <algorithm>
@@ -121,7 +122,7 @@ std::int32_t ai_maximum(const World &world, Random &random, const Property &targ
         ceiling_product < std::numeric_limits<std::int32_t>::min() || ceiling_product >= 2147483648.0
             ? std::numeric_limits<std::int32_t>::min()
             : static_cast<std::int32_t>(ceiling_product);
-    return std::min({desired, ceiling, world.players.at(player).state.cash});
+    return mod::display_i32(std::min<std::int64_t>({desired, ceiling, world.players.at(player).state.cash}));
 }
 bool excluded_by_status(const PlayerStatus &value) noexcept {
     return value.days_in_hotel || value.days_disappearing || value.days_in_prison || value.days_in_hospital ||
