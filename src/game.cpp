@@ -3602,8 +3602,12 @@ struct GameSession::Impl {
         for (auto &entry : world.players) {
             auto &state = entry.state;
             if (state.controller_flags && state.loan == 0) {
-                if (state.bank_balance <= INT32_MAX && state.bank_balance >= INT32_MIN) {
-                    // Keep original x87 rounding for vanilla-sized balances.
+                // Even a value WITHIN int32 may overflow its 1.1x interest
+                // conversion (e.g. 2 billion deposits). Only use original
+                // FISTP path when the projected RESULT also fits int32.
+                if (state.bank_balance <= (std::int64_t(INT32_MAX) * 10 / 11) &&
+                    state.bank_balance >= (std::int64_t(INT32_MIN) * 10 / 11)) {
+                    // Keep original x87 rounding for safely bounded deposits.
                     state.bank_balance =
                         (numeric::Extended::from(state.bank_balance) * numeric::Extended::from(1.1)).integer();
                 } else {
