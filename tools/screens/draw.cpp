@@ -221,7 +221,7 @@ void popup(Host &host, std::string_view message, int y) {
 }
 
 std::string grouped(std::int64_t amount) {
-    return ui::money(amount).substr(1);
+    return ui::digits(amount);
 }
 
 void hit(Host &host, int id, graphics::Rect rect, int effect, std::function<void()> action, bool enabled) {

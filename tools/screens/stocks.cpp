@@ -314,7 +314,7 @@ void StockMarket::draw_holdings(Host &host, const World &world) {
         }
         if (listed && commercial) {
             text(frame, grouped(commercial->shares_remaining), 520, y, 6, white_text);
-            text(frame, grouped(commercial->funds), 609, y, 6, white_text);
+            text(frame, financial(commercial->funds), 609, y, 6, white_text);
         }
     }
 }
@@ -355,10 +355,10 @@ void StockMarket::draw_info(Host &host, const World &world, std::size_t stock) {
     text(frame, "持股比例", 502, 318, 2, small);
 
     if (commercial) {
-        text(frame, grouped(commercial->funds), 309, 123, 6, label);
+        text(frame, financial(commercial->funds), 309, 123, 6, label);
         const auto average = world.month_counter ? commercial->funds_change / std::int64_t(world.month_counter)
                                                  : commercial->funds_change;
-        text(frame, grouped(average), 309, 162, 6, label);
+        text(frame, financial(average), 309, 162, 6, label);
         if (commercial->owner_code >= 1 && commercial->owner_code <= world.players.size())
             text(frame, names.at(world.players[commercial->owner_code - 1].state.character), 269, 203, 2, label);
     }

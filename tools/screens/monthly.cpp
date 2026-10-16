@@ -33,7 +33,7 @@ constexpr Style bubble_style{20, 0x101010, 0, bold}; // fcn_0044ecb6: font(20, c
 constexpr unsigned bubble_min_ms = 2000; // fcn_0044ee18: a bubble stays at least 2 s, and until its voice ends
 
 std::string money(std::int64_t amount) {
-    return screens::grouped(amount);
+    return screens::financial(amount);
 }
 bool listed(const MonthlyFigures &figures, std::size_t slot) {
     return slot < 4 && ((figures.active >> slot) & 1U);

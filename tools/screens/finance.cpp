@@ -216,6 +216,15 @@ void NumberPad::draw(Host &host) {
         const char digit = text_[text_.size() - 1 - n];
         frame.picture(picture(std::size_t(16 + digit - '0')), x_ + k * (107 - 12 * int(n)), y_ + k * 11);
     }
+    // Original nine sprites only fit the trailing digits. Show a separate
+    // complete, labelled edit value on wide transactions.
+    if (text_.size() > 9) {
+        const graphics::Rect display{x_, y_ - 28, x_ + 128 * k, y_ - 2};
+        ui::fill(frame.canvas, display, ui::color(19, 35, 54));
+        ui::border(frame.canvas, display, ui::color(212, 169, 78));
+        frame.font.draw(frame.canvas, ui::digits(value()), x_ + 5, y_ - 23,
+                        text_.size() >= 16 ? 13 : 16, ui::color(255, 233, 173));
+    }
     frame.picture(picture(1), x_ + k * 10, y_ + k * 42);
     if (const auto current = value(); current > 0 && maximum_ > 0) {
         const auto step = std::clamp(int(double(current) / maximum_ * 33), 0, 33);
@@ -431,6 +440,13 @@ void BankScreen::draw_atm(Host &host, const World &world, const GameDecision &de
     for (std::size_t k = 0; k < std::min<std::size_t>(10, atm_text_.size()); ++k) {
         const char digit = atm_text_[atm_text_.size() - 1 - k];
         frame.picture('p', 24, std::size_t(19 + digit - '0'), 304 - 20 * int(k), 172);
+    }
+    if (atm_text_.size() > 10) {
+        const graphics::Rect display{111, 142, 332, 167};
+        ui::fill(frame.canvas, display, ui::color(19, 35, 54));
+        ui::border(frame.canvas, display, ui::color(212, 169, 78));
+        frame.font.draw(frame.canvas, ui::digits(parse(atm_text_)), 114, 147,
+                        atm_text_.size() >= 16 ? 13 : 15, ui::color(255, 233, 173));
     }
     if (maximum > 0) {
         const int lit = std::clamp(int(double(parse(atm_text_)) / maximum * 34), 0, 34) * 6;
@@ -653,9 +669,9 @@ void BankScreen::draw_director(Host &host, const World &world, const GameDecisio
     text(frame, "客戶存款總額", 78, 147, 2, label);
     text(frame, "目前融資金額", 78, 195, 2, label);
     text(frame, "尚可融資金額", 78, 243, 2, label);
-    text(frame, grouped(total), 128, 163, 6, label);
-    text(frame, grouped(special), 128, 211, 6, label);
-    text(frame, grouped(std::int64_t(total) - special), 128, 259, 6, label);
+    text(frame, financial(total), 128, 163, 6, label);
+    text(frame, financial(special), 128, 211, 6, label);
+    text(frame, financial(std::int64_t(total) - special), 128, 259, 6, label);
     if (!lines_.empty()) {
         auto index = std::size_t((frame.ticks - line_started_) / 2000);
         if (pad.active())

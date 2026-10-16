@@ -351,13 +351,45 @@ class Font {
     std::map<std::tuple<int, char32_t, bool>, Glyph> glyphs_;
 };
 
-inline std::string money(std::int64_t amount) {
+// Exact grouped digits for edit fields and non-monetary share quantities.
+inline std::string digits(std::int64_t amount) {
     std::string text = std::to_string(amount);
     const std::size_t begin = amount < 0 ? 1 : 0;
     for (std::ptrdiff_t position = static_cast<std::ptrdiff_t>(text.size()) - 3;
          position > static_cast<std::ptrdiff_t>(begin); position -= 3)
         text.insert(static_cast<std::size_t>(position), ",");
-    return "$" + text;
+    return text;
+}
+
+// Display only: compact Chinese accounting units for the original 640px UI.
+// Calculations and the banking keypad always use exact 64-bit values.
+inline std::string compact_money(std::int64_t amount, bool dollar = true) {
+    const auto magnitude = amount < 0 ? std::uint64_t(-(amount + 1)) + 1
+                                      : std::uint64_t(amount);
+    constexpr std::uint64_t wan = 10'000, yi = 100'000'000,
+                            wan_yi = 1'000'000'000'000ULL, jing = 10'000'000'000'000'000ULL;
+    std::uint64_t unit = 1;
+    std::string_view suffix;
+    if (magnitude >= jing) { unit = jing; suffix = "京"; }
+    else if (magnitude >= wan_yi) { unit = wan_yi; suffix = "万亿"; }
+    else if (magnitude >= yi) { unit = yi; suffix = "亿"; }
+    else if (magnitude >= wan * 1000) { unit = wan; suffix = "万"; }
+    if (unit == 1)
+        return (dollar ? "$" : "") + digits(amount);
+    const auto major = magnitude / unit;
+    const auto minor = static_cast<unsigned>((magnitude % unit) * 100 / unit);
+    std::string result = (dollar ? "$" : "") + std::string(amount < 0 ? "-" : "") +
+                         std::to_string(major);
+    if (minor) {
+        result += ".";
+        result += char('0' + minor / 10);
+        if (minor % 10)
+            result += char('0' + minor % 10);
+    }
+    return result + std::string(suffix);
+}
+inline std::string money(std::int64_t amount) {
+    return compact_money(amount);
 }
 
 } // namespace rich4::ui

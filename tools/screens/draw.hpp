@@ -71,6 +71,8 @@ void popup(Host &host, std::string_view message, int y = 196);
 
 // "12,345" (num_to_currency without the dollar sign).
 std::string grouped(std::int64_t amount);
+// Compact non-dollar financial figures (not share counts or input amounts).
+inline std::string financial(std::int64_t amount) { return ui::compact_money(amount, false); }
 
 // Original UI sounds (Effect.mkf entries, finance-menus.md §0 "UI sound table").
 enum Effect : int { hover_sound = 0, click_sound = 1, exit_sound = 2, error_sound = 3, cancel_sound = 4,
