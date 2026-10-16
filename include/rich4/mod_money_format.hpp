@@ -2,6 +2,7 @@
 #pragma once
 // Presentation-only human-readable money. Balances, trading and save values stay
 // exactly signed64; callers needing exact input use grouped_digits().
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <string_view>

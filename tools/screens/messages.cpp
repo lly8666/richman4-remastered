@@ -260,6 +260,8 @@ std::optional<Item> god_item(const GameEvent &event) {
 } // namespace
 
 std::optional<Item> from_event(const GameEvent &event, const World &world) {
+    if (event.message == "MOD_TOLL_EVENT_PREVIEW")
+        return box("通行收費事件已觸發\n請先選擇嫁禍對象", 1200);
     // Card/tool lines: the core already applied the original absent-speaker gate when emitting.
     if (event.speech_table != SpeechTable::event && event.player < world.players.size())
         return item_speech_bubble(world.players[event.player].state.character, event.speech_table,

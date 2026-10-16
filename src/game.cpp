@@ -1680,12 +1680,20 @@ struct GameSession::Impl {
                                   bool free_allowed = true) {
         const auto offered = [&] {
             return requested >= multiply32(2000, world.header.price_index) ||
-                   requested > add32(player().cash, player().bank_balance);
+                   __int128(requested) > __int128(player().cash) + player().bank_balance;
         };
         if (free_allowed && offered() && try_free_card(actor(), static_cast<std::size_t>(owner), requested))
             requested = 0;
         auto payer = actor();
         if (offered()) {
+            if (has_card(world.players[actor()].state.cards, 19) &&
+                world.players[actor()].state.controller_flags == 1) {
+                // Present the toll incident cue before pausing for the framing
+                // target. The actual cost/owner box follows the chosen payer.
+                GameEvent cue{GameEventKind::notice, actor(), 0, player().node_id,
+                              "MOD_TOLL_EVENT_PREVIEW"};
+                events.push_back(std::move(cue));
+            }
             const auto target = try_frame_card(actor(), 1, requested);
             if (target >= 0)
                 payer = static_cast<std::size_t>(target);
