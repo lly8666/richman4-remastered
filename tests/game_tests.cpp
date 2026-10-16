@@ -824,7 +824,36 @@ void mod_ordered_original_result_movies() {
             }
         }
     }
-    require(checked_lottery && checked_month, "October 31 must test both monthly visual sequences");
+    // The original holds its lottery draw on day 15, but the month-end
+    // report is shown when the calendar rolls from day 31. Exercise both
+    // calendar boundaries rather than assuming the same date.
+    auto lottery_world = world();
+    lottery_world.header.date = {14, 10, 2026};
+    lottery_world.lottery_tickets[6] = 2;
+    rich4::GameSession lottery_game(std::move(lottery_world), 3);
+    for (unsigned step = 0; lottery_game.completed_days() < 1 && step < 200000; ++step) {
+        if (lottery_game.phase() == rich4::GamePhase::human_ready)
+            require(lottery_game.roll_dice(), "lottery order autoplay roll");
+        if (lottery_game.pending_decision())
+            require(lottery_game.respond(lottery_game.pending_decision()->options.empty() ? 0 :
+                                         lottery_game.pending_decision()->options.size() - 1),
+                    "lottery order reply");
+        lottery_game.tick(50);
+        const auto effects = lottery_game.drain_effects();
+        const auto events = lottery_game.drain_events();
+        for (const auto &effect : effects)
+            if (effect.kind == rich4::EffectKind::lottery_draw) {
+                const auto outcome = std::find_if(events.begin(), events.end(), [](const auto &event) {
+                    return event.message.starts_with("彩票开奖：");
+                });
+                require(outcome != events.end() &&
+                            effect.after_events <= std::size_t(outcome - events.begin()),
+                        "lottery draw effect must precede final draw announcement");
+                checked_lottery = true;
+            }
+    }
+    require(checked_lottery && checked_month,
+            "day 15 lottery and month-end report must each precede their result announcements");
 }
 void monthly_settlement() {
     auto value = world();
