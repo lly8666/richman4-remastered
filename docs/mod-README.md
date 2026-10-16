@@ -2,6 +2,10 @@
 
 **开发状态：** 2026-10-16。此分支与原版重构 `main` 分开；**绝不把 MOD 的经济限制回写到 main**。Android 包名 `io.divby0.rich4.mod`，可与原版共存，两个应用的存档各自独立。
 
+## 新 Agent 接手
+
+请先看 [全新 Agent 交接说明](AGENT-HANDOFF-2026-10-16.md)（快照日期 2026-10-16）：列明当前 `mod` 提交、真实完成情况、Android 新旧两套工作流、签名/存档风险、64 位耦合清单、CI 与下一步验证。根目录 [AGENTS.md](../AGENTS.md) 是简明入口；交接是定期快照，执行前务必以最新 HEAD 为准。
+
 ## 完整开发历史
 
 所有迄今可追溯的 Git 开发提交（包括失败后修正的试验）收录于 [完整开发历史和技术里程碑](history/COMPLETE-DEVELOPMENT-LOG-2026-10-16.md)。基础移植与差异研究还保留在 [migrations](migrations/README.md)、[UI 资料](ui/main-screen.md)、[逐项动画审计](audit/road-card-animation-order-2026-10-15.md)。历史文档描述已发生的工作，不等于每一项都在真机原版逐帧验收通过。
