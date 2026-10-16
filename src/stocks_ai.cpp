@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Derived from mytbk/rich4 asm/rich4.asm, original 0x42bf03 and 0x42c79f.
 #include "rich4/stocks_ai.hpp"
+#include "rich4/mod_rules.hpp"
 #include "rich4/calendar.hpp"
 #include "rich4/legacy_float.hpp"
 #include "rich4/random.hpp"
@@ -334,8 +335,9 @@ std::vector<Trade> buy(World &world, Random &random, std::size_t actor, bool mar
             continue;
         }
         const auto &stock = world.stocks[candidate.index];
-        const auto quantity = std::min((number(budget) / number(quote(stock))).integer(),
-                                       static_cast<std::int32_t>(stock.flags_10));
+        const auto quantity = static_cast<std::int32_t>(std::min<std::int64_t>({
+            (number(budget) / number(quote(stock))).integer(),
+            std::int64_t(stock.flags_10), mod::max_holding_shares - player.stocks[candidate.index].amount}));
         if (!quantity) {
             return {};
         }
