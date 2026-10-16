@@ -39,6 +39,12 @@ std::int32_t add32(std::int32_t a, std::int32_t b) noexcept {
 std::int32_t subtract32(std::int32_t a, std::int32_t b) noexcept {
     return std::bit_cast<std::int32_t>(static_cast<std::uint32_t>(a) - static_cast<std::uint32_t>(b));
 }
+// MOD overloads: keep original 32-bit helpers for map rules, but never wrap
+// cash, deposits, loan or public-fund fields after widening to int64.
+std::int64_t add32(std::int64_t a, std::int32_t b) { return mod::money_add(a, b); }
+std::int64_t add32(std::int64_t a, std::int64_t b) { return mod::money_add(a, b); }
+std::int64_t subtract32(std::int64_t a, std::int32_t b) { return mod::money_sub(a, b); }
+std::int64_t subtract32(std::int64_t a, std::int64_t b) { return mod::money_sub(a, b); }
 std::int32_t multiply32(std::int32_t a, std::int32_t b) noexcept {
     return std::bit_cast<std::int32_t>(static_cast<std::uint32_t>(a) * static_cast<std::uint32_t>(b));
 }
@@ -1452,7 +1458,7 @@ struct GameSession::Impl {
         const auto price = company.valuation / 10000;
         if (price <= 0)
             return; // Original divides by zero for malformed company valuations.
-        const auto maximum = std::min({player().cash / price, 1000, company.shares_remaining});
+        const auto maximum = std::min<std::int64_t>({player().cash / price, 10000000, company.shares_remaining});
         if (maximum <= 0)
             return;
         std::int32_t quantity = 0;
@@ -1611,7 +1617,7 @@ struct GameSession::Impl {
             paid = static_cast<std::int32_t>(std::min<std::int64_t>(requested, available));
             auto &first = flags & 4U ? payer.bank_balance : payer.cash;
             auto &second = flags & 4U ? payer.cash : payer.bank_balance;
-            const auto first_payment = std::min(std::max(first, 0), paid);
+            const auto first_payment = std::min<std::int64_t>(std::max(first, std::int64_t{0}), paid);
             first = subtract32(first, first_payment);
             second = subtract32(second, paid - first_payment);
             if (paid < requested)
@@ -3281,7 +3287,7 @@ struct GameSession::Impl {
         if (amount <= 0 || amount > player().loan ||
             static_cast<std::int64_t>(player().cash) + player().bank_balance < amount)
             return false;
-        const auto from_bank = std::min(std::max(player().bank_balance, std::int64_t{0}), amount);
+        const auto from_bank = std::min<std::int64_t>(std::max(player().bank_balance, std::int64_t{0}), amount);
         player().bank_balance = subtract32(player().bank_balance, from_bank);
         player().cash = subtract32(player().cash, amount - from_bank);
         player().loan = subtract32(player().loan, amount);
@@ -3499,7 +3505,7 @@ struct GameSession::Impl {
             // (core_actions:361) ends the turn silently. No shipped map has one.
             finish_turn();
     }
-    std::int32_t wealth(std::size_t slot) const {
+    std::int64_t wealth(std::size_t slot) const {
         return stocks::player_wealth(world, slot);
     }
     void update_price_index() {
