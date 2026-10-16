@@ -329,7 +329,7 @@ void attach_oracle(const std::filesystem::path &directory) {
                                           std::bit_cast<std::uint16_t>(player.status.god_luck_modifier),
                                           std::bit_cast<std::uint16_t>(player.status.money_fortune_modifier),
                                           std::bit_cast<std::uint16_t>(player.status.other_fortune_modifier),
-                                          std::bit_cast<std::uint32_t>(player.state.cash),
+                                          static_cast<std::uint32_t>(player.state.cash),
                                           player.status.cumulative_income,
                                           player.state.points,
                                           player.state.traffic_method,
