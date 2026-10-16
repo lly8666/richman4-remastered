@@ -11,3 +11,11 @@ __pycache__/
 /CMakeUserPresets.json
 /game-assets/*
 !/game-assets/README.md
+
+# Never publish Android signing credentials in this public repository.
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.key
+*SIGNING-PASSWORD*.txt

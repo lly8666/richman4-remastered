@@ -1,5 +1,5 @@
 # 《大富翁4》原版重构与 MOD：开发全历史和可核查索引
-更新：2026-10-16。本记录收录 **截至 `0a0dc1ecdb6beb29d11a4f160ccbb93cc0a7fdcf` 的 377 条可达 Git 提交记录**，由远端提交历史自动汇总；它不是声称能够复原没有落入 Git 的私人聊天、临时调试或丢失的构建产物。
+更新：2026-10-16。本记录收录 **截至 `ea822b90c6c8dbead9d07f9c4f1c4c8475365b6c` 的 383 条可达 Git 提交记录**，由远端提交历史自动汇总；它不是声称能够复原没有落入 Git 的私人聊天、临时调试或丢失的构建产物。
 
 ## 一、项目与分支
 - 源代码：[richman4-remastered](https://github.com/lly8666/richman4-remastered)；标准重构 `main` 用于尽力贴合 Windows 大富翁4 v3.11。
@@ -35,12 +35,18 @@
 - 原始游戏点券 16 bit，MOD 已让大笔道具销售点券饱和于 65535；是否继续拓宽属于另一个独立兼容性决策。
 - 此文档的附录提供所有可核查提交。分支继续演进时可按同一 GitHub API 列表重新生成附录，不要错误称其自动实时更新。
 
-## 四、提交历史附录（截至 0a0dc1ecdb6b，按新到旧）
+## 四、提交历史附录（截至 ea822b90c6c8，按新到旧）
 
 以下包含本轮资金/股市增容、编译失败及随后的修正；每条均链接到不可变的完整 Git commit。
 
 | 日期 (UTC) | 完整提交链接（短 SHA） | 变更标题 |
 |---|---|---|
+| 2026-10-16 | [`ea822b90c6c8`](https://github.com/lly8666/richman4-remastered/commit/ea822b90c6c8dbead9d07f9c4f1c4c8475365b6c) | MOD presentation: queue card popups only at their own event, block later outcomes until art completes |
+| 2026-10-16 | [`cf4a5d0b8e44`](https://github.com/lly8666/richman4-remastered/commit/cf4a5d0b8e4420e66da80f632ed4168dc7db5921) | MOD tests: verify lottery on day 15 and month report on calendar rollover |
+| 2026-10-16 | [`82e7ccc8dbba`](https://github.com/lly8666/richman4-remastered/commit/82e7ccc8dbbaec6087c385fdde910c3e0b627587) | MOD: defer lottery, bankruptcy and month-end result notices until their original movies finish |
+| 2026-10-16 | [`2156e3bde979`](https://github.com/lly8666/richman4-remastered/commit/2156e3bde9793dc29a0b89b012cd4b24bcf9d17d) | MOD UI: finish compact monetary columns in property, trading, auction and toll dialogs |
+| 2026-10-16 | [`dfb2c75743a1`](https://github.com/lly8666/richman4-remastered/commit/dfb2c75743a188834e5b58ed0103763bb5c21ee0) | MOD Android: repair signed64 finance keypad clamp and director callback syntax |
+| 2026-10-16 | [`b95ad2d69732`](https://github.com/lly8666/richman4-remastered/commit/b95ad2d697321b5fc5706f4ca090836f0910fc60) | MOD docs: hand off framing order, signed64 ATM and compact finance visuals |
 | 2026-10-16 | [`0a0dc1ecdb6b`](https://github.com/lly8666/richman4-remastered/commit/0a0dc1ecdb6beb29d11a4f160ccbb93cc0a7fdcf) | MOD regression: large-wallet toll avoids bogus framing and shows incident cue before choice |
 | 2026-10-16 | [`30668eede14e`](https://github.com/lly8666/richman4-remastered/commit/30668eede14e9ce0bad04fff5561cc6be623c29a) | MOD: show toll trigger before framing choice and fix 32-bit affordability overflow |
 | 2026-10-16 | [`191c621687c4`](https://github.com/lly8666/richman4-remastered/commit/191c621687c46a8b5744cb44c0c2321f7cc533c7) | MOD: reusable compact Chinese financial formatting with exact-amount regression tests |

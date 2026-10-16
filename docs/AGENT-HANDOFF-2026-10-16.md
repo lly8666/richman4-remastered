@@ -198,3 +198,12 @@ ctest --test-dir build/ci --output-on-failure --parallel 3
 4. **此轮源码 CI** [38932681378](https://github.com/lly8666/richman4-remastered/actions/runs/38932681378)、[38933168075](https://github.com/lly8666/richman4-remastered/actions/runs/38933168075)、[38933911818](https://github.com/lly8666/richman4-remastered/actions/runs/38933911818)、[38934508620](https://github.com/lly8666/richman4-remastered/actions/runs/38934508620) 均 success；早期实验 #38933673593 因新测试未放置监狱地图出口导致失败，已修正，**不是发布失败的遗留逻辑**。项目源码 `main` 不受影响。独立 builder 仓库原先旧 SHA 构建不是这版，不要混淆。
 
 下轮重点：试机检查大额 ATM 全数字编辑框横向空间、手机触屏点按和金额近似字体支持；可考虑银行单次新增贷款与董事长融资协议进一步 64 位改造及跨三文件保存事务，但需联动业务范围和旧 DAT，不能粗暴扩 C++ 字段。保留真机不曾测过的诚实状态。
+
+
+## 15. 2026-10-17 后续：原版动画播放顺序 + 固定签名密钥
+
+- **原版行为比较**：见新增 [事件顺序审计](audit/MOD-EVENT-ORDER-2026-10-17.md)，逐类对照 `docs/ui/effects.md`、`docs/ui/messages.md` 与 Native UI。**已经确认 3 个结果先播问题**：`advance_day` 彩票开奖 `emit` 原排在 `lottery_draw` 电影前；`close_month`“月结完成”原排在 `month_report` 前；`bankrupt` 结果事件先于 Data[555] 电影。现均改为电影／表格先，结果后，`tests/game_tests.cpp` 新增电影与事件 `after_events` 顺序回归。15 日彩票与月底结算分两天测，误用同日导致首次新增测试失败后已修正。
+- **影响所有被动卡的队列问题**：`tools/native_game.cpp::observe` 曾立刻调用 `items_.observe`，把本批次**尚未执行到的未来事件**卡片图片提前放入弹窗队列；如今只在 `present` 对应事件被实际消费时创建 popup，卡片弹窗加入 `presenting()` 阻塞条件，先完成卡片图片才可播其结果文字/音频和其他后续动画。需要 Android/SDL3 编译与真机再次检查。
+- **原版例外**：掷骰点数提前决定是 Windows 原版定义，不应为了视觉而把规则 RNG 顺序重排；规则值在 FLC 动画前提交也是原版契约。现保留内存实时结果，纠正对用户的显示顺序。某些原版胜利 AVI 和特殊角色的精确逐帧时间仍 UNVERIFIED，不能说所有动画已完全等价。
+- **签名**：前一成功 APK [38935496368](https://github.com/lly8666/qairt-sdk-archive/actions/runs/38935496368) 使用临时密钥证书 `8b0c6207...`，前前次是 `139486e4...`；不能恢复旧私钥。最新**新的固定** PKCS12（alias `rich4-local-test`，证书 SHA-256 `36778ecf6ef797072560d5cf75777ff508d67a30aa06e15b3e5fabb74e65577d`）保存在本会话用户可下载的私有文件和独立密码文件中，**未入公开 Git**。已在构建仓库 `main` 的仅 MOD APK 工作流加入 GitHub Actions Secrets 必填和公钥指纹核查，删除临时生成新密钥的退路。需要用户设置 `RICH4_KEYSTORE_B64`、`RICH4_KEYSTORE_PASSWORD`，此工具连接无法代填，没配置前的 Workflow 失败是预期安全行为。链接 [签名配置文档](ANDROID-MOD-SIGNING.md)。原版源码 `main` 不可动。
+- **检查结果**：核心 CI [38940321502](https://github.com/lly8666/richman4-remastered/actions/runs/38940321502) 于彩票与破产顺序测试修正后全套通过；本轮最终 Native UI 队列改造在后续 [38940817651](https://github.com/lly8666/richman4-remastered/actions/runs/38940817651) **36/36 success**，需要独立 APK C++ 完整编译。2026-10-17 前后不同工作流的实际 SHA 要一一核对。
