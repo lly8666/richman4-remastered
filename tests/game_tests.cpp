@@ -632,6 +632,23 @@ void mod_wide_company_dividend_settlement() {
                 session.world().players[0].state.loan == 800'000'000 &&
                 session.world().commercials[1].funds == 0,
             "64-bit company dividends must credit full bank amount and preserve loan");
+    auto overflowing = world();
+    overflowing.header.date = {14, 10, 2026};
+    overflowing.stocks[0].flags_4 = 1;
+    overflowing.commercials[1].funds = 1000;
+    overflowing.players[0].stocks[0].amount = 100;
+    overflowing.players[0].state.bank_balance = INT64_MAX - 500;
+    rich4::GameSession rejection(std::move(overflowing), 3);
+    bool rejected = false;
+    try {
+        (void)play_days(rejection, 1);
+    } catch (const std::overflow_error &) {
+        rejected = true;
+    }
+    require(rejected &&
+                rejection.world().commercials[1].funds == 1000 &&
+                rejection.world().players[0].state.bank_balance == INT64_MAX - 500,
+            "dividend overflow must reject before clearing enterprise account or crediting any player");
 }
 void monthly_settlement() {
     auto value = world();
