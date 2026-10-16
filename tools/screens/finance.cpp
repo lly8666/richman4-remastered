@@ -577,7 +577,7 @@ void BankScreen::draw_desk(Host &host, const World &world, const GameDecision &d
 
     const auto wealth = stocks::player_wealth(world, slot);
     const auto loan = player.state.loan;
-    const auto available = player.state.cash + std::int64_t(player.state.bank_balance);
+    const auto available = mod::money_add(player.state.cash, player.state.bank_balance);
     const auto sound = host.sound;
     auto *frame_pointer = &frame;
     hit(host, ids::desk_exit, {548, 431, 629, 472}, exit_sound, [actions] { actions.respond(0, 0); });
@@ -682,7 +682,7 @@ void BankScreen::draw_director(Host &host, const World &world, const GameDecisio
         } else
             lines_.clear();
     }
-    const auto available = player.state.cash + std::int64_t(player.state.bank_balance);
+    const auto available = mod::money_add(player.state.cash, player.state.bank_balance);
     const auto sound = host.sound;
     auto *frame_pointer = &frame;
     hit(host, ids::director_finance, rects[0], click_sound,

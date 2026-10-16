@@ -377,7 +377,7 @@ inline std::string compact_money(std::int64_t amount, bool dollar = true) {
     if (unit == 1)
         return (dollar ? "$" : "") + digits(amount);
     const auto major = magnitude / unit;
-    const auto minor = static_cast<unsigned>((magnitude % unit) * 100 / unit);
+    const auto minor = static_cast<unsigned>((magnitude % unit) / (unit / 100));
     std::string result = (dollar ? "$" : "") + std::string(amount < 0 ? "-" : "") +
                          std::to_string(major);
     if (minor) {

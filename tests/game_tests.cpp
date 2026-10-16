@@ -534,6 +534,47 @@ void alliance_rent() {
                 free.world().players[0].status.hostility[2] == 20,
             "free card must not erase original pre-defense hostility");
 }
+void mod_64bit_bank_deposit_and_withdraw() {
+    auto v = world();
+    for (auto &node : v.nodes)
+        node.flags = (node.flags & ~255U) | 14;
+    v.players[0].state.cash = 15'100'000'000LL;
+    v.players[0].state.bank_balance = 8'000'000'000LL;
+    rich4::GameSession game(std::move(v), 0);
+    first_landing(game);
+    require(game.pending_decision() && game.pending_decision()->kind == rich4::DecisionKind::bank,
+            "wide bank session must open ATM");
+    const auto choose = [&](int value) {
+        const auto &opts = game.pending_decision()->options;
+        const auto it = std::find_if(opts.begin(), opts.end(), [&](const auto &opt) { return opt.value == value; });
+        require(it != opts.end(), "wide bank action missing");
+        return std::size_t(it - opts.begin());
+    };
+    require(game.respond(choose(1), 15'100'000'000LL) &&
+                game.world().players[0].state.cash == 0 &&
+                game.world().players[0].state.bank_balance == 23'100'000'000LL,
+            "ATM must allow all 15.1b cash in one deposit");
+    require(game.respond(choose(2), 23'100'000'000LL) &&
+                game.world().players[0].state.cash == 23'100'000'000LL &&
+                game.world().players[0].state.bank_balance == 0,
+            "ATM must allow all 23.1b in one withdrawal");
+    require(!game.respond(choose(2), 1) &&
+                game.world().players[0].state.cash == 23'100'000'000LL,
+            "failed additional withdrawal does not mutate cash");
+    auto v2 = world();
+    for (auto &node : v2.nodes)
+        node.flags = (node.flags & ~255U) | 14;
+    v2.players[0].state.cash = 8'000'000'000LL;
+    v2.players[0].state.bank_balance = INT64_MAX - 100;
+    rich4::GameSession overflow(std::move(v2), 0);
+    first_landing(overflow);
+    bool rejected = false;
+    try { (void)overflow.respond(0, 1000); }
+    catch (const std::overflow_error &) { rejected = true; }
+    require(rejected && overflow.world().players[0].state.cash == 8'000'000'000LL &&
+                overflow.world().players[0].state.bank_balance == INT64_MAX - 100,
+            "overflowing deposit must reject before debiting any cash");
+}
 void bank_and_failure() {
     auto value = world();
     for (auto &node : value.nodes)
@@ -1926,6 +1967,7 @@ int main() {
         land_god_own_upgrade();
         property_and_rent();
         alliance_rent();
+        mod_64bit_bank_deposit_and_withdraw();
         bank_and_failure();
         thirty_days_and_timing();
         mod_wide_company_dividend_settlement();
