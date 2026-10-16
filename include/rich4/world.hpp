@@ -52,7 +52,7 @@ struct PlayerStatus {
 };
 
 struct StockHolding {
-    std::int32_t amount = 0;
+    std::int64_t amount = 0;
     std::uint32_t raw_cost_basis = 0; // Original second word, preserved as bits.
 };
 
@@ -74,8 +74,8 @@ struct StockState {
     std::uint16_t flags_4 = 0;
     std::uint8_t suspension_days = 0;
     std::uint8_t news_movement = 0;
-    std::uint16_t shares_available = 0;
-    std::uint16_t flags_10 = 0;
+    std::uint32_t shares_available = 0;
+    std::uint32_t flags_10 = 0;
     // Exact original binary32 encodings at offsets 12,16,20,24,28. Keeping
     // bits avoids canonicalizing NaNs during an unchanged round trip.
     std::array<std::uint32_t, 5> float_bits{};
@@ -164,7 +164,7 @@ struct Commercial {
     std::uint8_t stock_index = 0;
     std::int32_t funds = 0;                          // +0x28, company balance.
     std::int32_t funds_change = 0;                   // +0x2c, original running cash-flow counter.
-    std::int32_t shares_remaining = 0;               // +0x30.
+    std::int64_t shares_remaining = 0;               // +0x30.
     std::array<std::uint8_t, 4> shareholder_order{}; // +0x1c, stable original rank order.
     std::int32_t valuation = 0;                      // +0x24.
     std::string name{}; // Original Big5 bytes at +4 (map-tile popup only; read-only, never saved).
@@ -230,7 +230,7 @@ class World {
     std::int32_t stock_history_cursor = 0;
     std::int32_t stock_market_index = 0;          // Original 0x499078.
     std::uint32_t stock_market_movement_bits = 0; // Original binary32 at 0x4990ec.
-    std::int32_t public_fund = 0;                 // Original recipient -1 payment accumulator.
+    std::int64_t public_fund = 0;                 // Original recipient -1 payment accumulator.
     std::int32_t news_effect_days = 0;            // Original 0x4990dc, news event 26.
     std::uint32_t lease_mode = 0;                 // Original 0x499110, not inferred from expiry dates.
     std::uint32_t camera_rotation = 0;            // Original 0x499088.
