@@ -540,6 +540,9 @@ void mod_frame_card_event_preview_order() {
         auto v = world();
         for (auto &node : v.nodes)
             node.flags = (node.flags & ~255U) | 3; // Fortune tile
+        // A jail event must have a legal confinement destination when
+        // replaying the chosen framing decision.
+        v.nodes.back().flags = (v.nodes.back().flags & ~255U) | 4;
         v.fortune_deck.fill(33); // Prison fortune; eligible framing card
         v.fortune_cursor = 0;
         v.players[0].state.cards = {19};
