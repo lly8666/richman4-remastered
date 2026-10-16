@@ -11,12 +11,12 @@ class Random;
 namespace stocks {
 
 struct SaleResult {
-    std::int32_t proceeds{};
+    std::int64_t proceeds{};
     bool commercial_owner_changed{};
 };
 
 struct PurchaseResult {
-    std::int32_t cost{};
+    std::int64_t cost{};
     bool commercial_owner_changed{};
 };
 
@@ -54,7 +54,7 @@ std::size_t update_stocks(World &world, unsigned one_based_or_zero_all);
 // Original 0x4239b9: cash + bank - loan, stock value with the original per-stock
 // binary32 accumulator conversion, and owned land/facility acquisition values.
 // Does not multiply property value by the price index.
-[[nodiscard]] std::int32_t player_wealth(const World &world, std::size_t player);
+[[nodiscard]] std::int64_t player_wealth(const World &world, std::size_t player);
 
 // Original 0x42915a, called at the start of each player's turn. Consumes one draw
 // per stock whose available share count exceeds 1000.
