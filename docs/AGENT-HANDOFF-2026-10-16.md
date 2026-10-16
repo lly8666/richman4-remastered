@@ -122,3 +122,16 @@ ctest --test-dir build/ci --output-on-failure --parallel 3
 - [MOD 正确 Android 构建脚本](https://github.com/lly8666/qairt-sdk-archive/blob/main/.github/workflows/build-richman4-android-mod.yml)
 
 > 本交接目的：下一名 Agent **接得上已完成进度、不会重新做已完成改造、不误打旧分支 APK、不因高额字段狭窄或丢失侧车而损坏存档**。有新需求应先以当时的 HEAD 和测试为准重新复核。
+
+
+## 10. 后续 Agent 续开发增量核查（2026-10-16）
+
+> 以上 §1–9 为截至代码基线 `8bc6eb54` 的原始交接快照；本节是后续追加，不能反向把旧 APK 视作包含新源码。
+
+- **远端状态**：新增代码提交 [`a204cfec`](https://github.com/lly8666/richman4-remastered/commit/a204cfec7818a6331ea39522ed60ae61260c2bc3) 与 [`9d05838a`](https://github.com/lly8666/richman4-remastered/commit/9d05838a8ca7b6476b689bae4340a2e0d233059e)，只写入 `mod`，不修改原版 `main`。
+- **拍卖 64 位结算**：旧 `src/auction.cpp` 用 `add32` 接受宽化的玩家现金、卖家存款和公共资金，高余额会被窄化/环绕。已改为结算前对买卖双方做受检 64 位算术、失败恢复拍卖状态，附超过 INT32 与接近 INT64 上限的回归。[核心 CI `38862885859`](https://github.com/lly8666/richman4-remastered/actions/runs/38862885859) **success**。
+- **魔法屋与银行**：`src/services.cpp` 的最多资产、现金、存款选择原用 32 位局部值，魔法效果 4“现金全存银行”又用 `add(int32,int32)`；已改为 64 位排序与全目标预检后统一转账，补万亿级及原子拒绝测试。[核心 CI `38863131499`](https://github.com/lly8666/richman4-remastered/actions/runs/38863131499) **success**。
+- **企业资金仍是首要开放风险**：`Commercial.funds/funds_change` 仍为 int32（`include/rich4/world.hpp`）；`src/game.cpp::pay`、`src/events.cpp`、`src/services.cpp::close_shop` 可继续走 32 位企业计账；`src/game.cpp::pay_dividends` 依赖该资金并对股息做历史整数换算。**不得直接只改 struct 类型**：原 DAT 商业记录对应偏移 40、44 的字段仍为 32 位，`RICH4-MOD-ECON-2` 侧车目前没有保存这些真实字段。下一轮需整套设计新版侧车/兼容预览/旧侧车回读/金额结算/AI/股息与 Android 展示，并补跨保存重载测试。
+- **剩余有意窄化待定规则**：`TradeOffer.price` 是 int32、`TradeOffer.quantity` 是 uint16，股票大持仓并不等于玩家间一次要约可出售 10 亿股；目前保留原有 DAT/UI 契约。日股市 `stock_market_index` 为 int32，若 12 支股价均在 999999 内，求和乘 10 的理论上界低于 1.2 亿；须继续测试实际旧浮点与无效报价路径，不能只按类型下结论。
+- **存档未关闭**：Android `tools/native_game.cpp::write_save` 仍逐个写 DAT、mod、rng 三个文件，**没有跨文件原子替换**。侧车丢失时，一些饱和资金预览无法与合法的原版 DAT 最大值无歧义区分；不要擅自允许静默截断或宣称灾难恢复完成。
+- **Android 跟进状态**：正确 workflow `qairt-sdk-archive/.github/workflows/build-richman4-android-mod.yml` 仍锁定 `8bc6eb54`。已核实的成功 [run 38853125080](https://github.com/lly8666/qairt-sdk-archive/actions/runs/38853125080) **不包含**这两次新修复。遵照此次“代码修改只提交到 mod”要求，本轮未触碰工作流仓库的 `main`；下次打包需明确取得修改工作流 pin 的授权/范围。新代码没有真机验收，不要将核心 CI green 说成 Android UI green。

@@ -1,5 +1,5 @@
 # 《大富翁4》原版重构与 MOD：开发全历史和可核查索引
-更新：2026-10-16。本记录收录 **GitHub 当前 `mod` 分支可达的全部 330 条提交记录**，由远端提交历史自动汇总；它不是声称能够复原没有落入 Git 的私人聊天、临时调试或丢失的构建产物。
+更新：2026-10-16。本记录收录 **截至 `9d05838a8ca7b6476b689bae4340a2e0d233059e` 的 336 条可达 Git 提交记录**，由远端提交历史自动汇总；它不是声称能够复原没有落入 Git 的私人聊天、临时调试或丢失的构建产物。
 
 ## 一、项目与分支
 - 源代码：[richman4-remastered](https://github.com/lly8666/richman4-remastered)；标准重构 `main` 用于尽力贴合 Windows 大富翁4 v3.11。
@@ -35,12 +35,18 @@
 - 原始游戏点券 16 bit，MOD 已让大笔道具销售点券饱和于 65535；是否继续拓宽属于另一个独立兼容性决策。
 - 此文档的附录提供所有可核查提交。分支继续演进时可按同一 GitHub API 列表重新生成附录，不要错误称其自动实时更新。
 
-## 四、提交历史附录（截至 bbb120f7c3a0，按新到旧）
+## 四、提交历史附录（截至 9d05838a8ca7，按新到旧）
 
 以下包含本轮资金/股市增容、编译失败及随后的修正；每条均链接到不可变的完整 Git commit。
 
 | 日期 (UTC) | 完整提交链接（短 SHA） | 变更标题 |
 |---|---|---|
+| 2026-10-16 | [`9d05838a8ca7`](https://github.com/lly8666/richman4-remastered/commit/9d05838a8ca7b6476b689bae4340a2e0d233059e) | MOD: preserve 64-bit magic targeting and atomic cash-to-bank transfers |
+| 2026-10-16 | [`a204cfec7818`](https://github.com/lly8666/richman4-remastered/commit/a204cfec7818a6331ea39522ed60ae61260c2bc3) | MOD: settle auctions with checked 64-bit balances and atomic overflow regression |
+| 2026-10-16 | [`9f12e1365707`](https://github.com/lly8666/richman4-remastered/commit/9f12e1365707086c514de1e34923ba509a39df43) | MOD: link full agent handoff and AGENTS entrypoint from MOD README |
+| 2026-10-16 | [`1a2d45c38121`](https://github.com/lly8666/richman4-remastered/commit/1a2d45c381213fa9125715d89c107fc682ff35fb) | MOD: add root agent onboarding pointing to verified handoff and branch safety requirements |
+| 2026-10-16 | [`db1a151d3616`](https://github.com/lly8666/richman4-remastered/commit/db1a151d361607934dbc8ad3c46fd0b90f215450) | MOD: add verified full-agent handoff with 64-bit economics, build pins, saves, CI and next priorities |
+| 2026-10-16 | [`8bc6eb54c92a`](https://github.com/lly8666/richman4-remastered/commit/8bc6eb54c92a205001ed699786394f930c242457) | MOD: reindex all 330 development commits including Android fixes and wide month-end money |
 | 2026-10-16 | [`bbb120f7c3a0`](https://github.com/lly8666/richman4-remastered/commit/bbb120f7c3a08fd0e04f2b9842d42aaf4c70a253) | MOD: evaluate AI shareholder control and four-player share totals without 32-bit wrapping |
 | 2026-10-16 | [`960e6ba8c045`](https://github.com/lly8666/richman4-remastered/commit/960e6ba8c045092fe19d66a86dff59806534e64f) | MOD test: interest on 2bn deposits must produce positive 2.2bn without int32 FISTP overflow |
 | 2026-10-16 | [`ffe20e2cf6c7`](https://github.com/lly8666/richman4-remastered/commit/ffe20e2cf6c7c5f522da2ebac80eba7f8c6e35bc) | MOD: protect bank month-end interest at 2bn boundary where 1.1x exceeds signed32 |
