@@ -624,6 +624,24 @@ void monthly_settlement() {
             "month report figures differ");
     require(figures.unlucky_days[3] == 3 && figures.spending[3] == 9000 && figures.unlucky == -1,
             "a lone unlucky score has no runner-up, so no 悲情人物");
+
+    // The original's FISTP int32 used for monthly interest and reporting must
+    // not turn trillion-dollar MOD deposits into negative balances or pick the
+    // wrong month champion.
+    value = world();
+    value.header.date = {31, 10, 2026};
+    value.players[0].state.bank_balance = INT64_C(50000000000000);
+    rich4::GameSession large_month(std::move(value), 3);
+    const auto wide_effects = play_days(large_month, 1);
+    const auto *wide_report = find_effect(wide_effects, rich4::EffectKind::month_report);
+    require(wide_report && wide_report->monthly &&
+                wide_report->monthly->deposit[0] == INT64_C(50000000000000) &&
+                wide_report->monthly->interest[0] == INT64_C(5000000000000) &&
+                wide_report->monthly->balance[0] == INT64_C(55000000000000) &&
+                wide_report->monthly->total[0] > INT32_MAX &&
+                wide_report->monthly->champion == 0 &&
+                large_month.world().players[0].state.bank_balance == INT64_C(55000000000000),
+            "MOD monthly bank interest and total-wealth champion must retain signed64");
 }
 // Unlike deterministic test replays, interactive loads do not restore a .rng
 // sidecar. Original save_load.asm reseeds from GetTickCount after loading DAT.
