@@ -3211,7 +3211,7 @@ struct GameSession::Impl {
         decision = std::move(prompt);
         set_phase(GamePhase::awaiting_decision);
     }
-    void collect_bank_debt(std::size_t slot, std::int32_t amount) {
+    void collect_bank_debt(std::size_t slot, std::int64_t amount) {
         auto &state = world.players.at(slot).state;
         state.bank_balance = subtract32(state.bank_balance, amount);
         if (state.bank_balance >= 0)
