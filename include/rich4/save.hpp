@@ -48,10 +48,10 @@ struct PlayerState {
     std::uint8_t character;
     std::uint8_t sex;
     std::uint8_t controller_flags; // Low 2 bits: 0 inactive, 1 human, 2 computer.
-    std::int32_t cash;
-    std::int32_t bank_balance; // Includes special financing in the original format.
-    std::int32_t loan;
-    std::int32_t special_finance;
+    std::int64_t cash;
+    std::int64_t bank_balance; // Includes special financing in the original format.
+    std::int64_t loan;
+    std::int64_t special_finance;
     std::uint16_t points;
     std::array<std::uint8_t, 15> cards;        // Card IDs in inventory slot order.
     ToolAmounts tool_amounts; // MOD: 16-bit counts, legacy DAT serializes only bytes.
