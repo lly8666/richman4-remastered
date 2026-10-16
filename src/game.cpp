@@ -3585,8 +3585,14 @@ struct GameSession::Impl {
         for (std::size_t slot = 0; slot < world.players.size() && slot < 4; ++slot) {
             const auto &entry = world.players[slot];
             report.deposit[slot] = entry.state.bank_balance;
-            report.interest[slot] =
-                (numeric::Extended::from(entry.state.bank_balance) * numeric::Extended::from(0.1)).integer();
+            // Preserve the original binary32/x87 path for classic-sized
+            // deposits; wide MOD balances cannot pass through FISTP int32.
+            if (entry.state.bank_balance <= INT32_MAX && entry.state.bank_balance >= INT32_MIN)
+                report.interest[slot] =
+                    (numeric::Extended::from(entry.state.bank_balance) * numeric::Extended::from(0.1)).integer();
+            else
+                report.interest[slot] = static_cast<std::int64_t>(
+                    (__int128(entry.state.bank_balance) / 10));
             if (entry.state.loan)
                 report.loans |= static_cast<std::uint8_t>(1U << slot);
             report.unlucky_days[slot] = entry.status.total_winter_sleep_days;
@@ -3596,10 +3602,19 @@ struct GameSession::Impl {
         for (auto &entry : world.players) {
             auto &state = entry.state;
             if (state.controller_flags && state.loan == 0) {
-                // Preserve the original x87 product and FISTP truncation,
-                // including its INT32_MIN sentinel for out-of-range amounts.
-                state.bank_balance =
-                    (numeric::Extended::from(state.bank_balance) * numeric::Extended::from(1.1)).integer();
+                if (state.bank_balance <= INT32_MAX && state.bank_balance >= INT32_MIN) {
+                    // Keep original x87 rounding for vanilla-sized balances.
+                    state.bank_balance =
+                        (numeric::Extended::from(state.bank_balance) * numeric::Extended::from(1.1)).integer();
+                } else {
+                    // MOD totals must never run through the original int32
+                    // FISTP conversion. A 10% increase is exactly representable
+                    // with an int128 intermediate; reject overflow, don't wrap.
+                    const auto increased = (__int128(state.bank_balance) * 11) / 10;
+                    if (increased > INT64_MAX || increased < INT64_MIN)
+                        throw std::overflow_error("MOD monthly bank interest exceeds int64");
+                    state.bank_balance = static_cast<std::int64_t>(increased);
+                }
             }
         }
         month_awards(report);
@@ -3615,7 +3630,7 @@ struct GameSession::Impl {
     // (+92 − +96) + 倒楣天數 × price index × 2500 + (word +68) × 10: the top score M wins only when
     // M and the runner-up S (scores equal to M excluded) are non-zero and (M − S) / M > 0.4.
     void month_awards(MonthlyFigures &report) const {
-        std::int32_t best_wealth = 0;
+        std::int64_t best_wealth = 0;
         std::array<std::int32_t, 4> score{};
         report.champion = -1;
         for (std::size_t slot = 0; slot < world.players.size() && slot < 4; ++slot) {
