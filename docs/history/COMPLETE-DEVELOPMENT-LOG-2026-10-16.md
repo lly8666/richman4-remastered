@@ -1,5 +1,5 @@
 # 《大富翁4》原版重构与 MOD：开发全历史和可核查索引
-更新：2026-10-16。本记录收录 **截至 `6f8295ee35f4df014a7552b15f97577812e04fac` 的 348 条可达 Git 提交记录**，由远端提交历史自动汇总；它不是声称能够复原没有落入 Git 的私人聊天、临时调试或丢失的构建产物。
+更新：2026-10-16。本记录收录 **截至 `8c55837cef6b4255462ac3fb2d4a0e75876f50de` 的 351 条可达 Git 提交记录**，由远端提交历史自动汇总；它不是声称能够复原没有落入 Git 的私人聊天、临时调试或丢失的构建产物。
 
 ## 一、项目与分支
 - 源代码：[richman4-remastered](https://github.com/lly8666/richman4-remastered)；标准重构 `main` 用于尽力贴合 Windows 大富翁4 v3.11。
@@ -35,12 +35,15 @@
 - 原始游戏点券 16 bit，MOD 已让大笔道具销售点券饱和于 65535；是否继续拓宽属于另一个独立兼容性决策。
 - 此文档的附录提供所有可核查提交。分支继续演进时可按同一 GitHub API 列表重新生成附录，不要错误称其自动实时更新。
 
-## 四、提交历史附录（截至 6f8295ee35f4，按新到旧）
+## 四、提交历史附录（截至 8c55837cef6b，按新到旧）
 
 以下包含本轮资金/股市增容、编译失败及随后的修正；每条均链接到不可变的完整 Git commit。
 
 | 日期 (UTC) | 完整提交链接（短 SHA） | 变更标题 |
 |---|---|---|
+| 2026-10-16 | [`8c55837cef6b`](https://github.com/lly8666/richman4-remastered/commit/8c55837cef6b4255462ac3fb2d4a0e75876f50de) | MOD: fix AI bank INT32_MIN cash conversion and fortune income; replay 15.1b loan-funded stock sale |
+| 2026-10-16 | [`45233f5eb0c0`](https://github.com/lly8666/richman4-remastered/commit/45233f5eb0c0bf4a596f0e3208a547dff02fd43f) | MOD docs: make ECON-3 save requirements and current regression status explicit |
+| 2026-10-16 | [`be804e2480a8`](https://github.com/lly8666/richman4-remastered/commit/be804e2480a85567fa57fe1470e7318b113d90da) | MOD docs: hand off verified loan, share, shop and ECON-3 card stack changes |
 | 2026-10-16 | [`6f8295ee35f4`](https://github.com/lly8666/richman4-remastered/commit/6f8295ee35f4df014a7552b15f97577812e04fac) | MOD test: use settled bank stop rather than pass-through for high-value borrowing |
 | 2026-10-16 | [`432c6f307553`](https://github.com/lly8666/richman4-remastered/commit/432c6f307553b252b1a43e4598ddf819fc762e1d) | MOD test: distinguish loan option access from available borrowing collateral |
 | 2026-10-16 | [`72bd50e283c2`](https://github.com/lly8666/richman4-remastered/commit/72bd50e283c26009cf7d758a43601e36ca3fb8c0) | MOD test: seed enough shares for overflow-only peer trading regression |

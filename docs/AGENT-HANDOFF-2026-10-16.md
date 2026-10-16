@@ -147,3 +147,13 @@ ctest --test-dir build/ci --output-on-failure --parallel 3
 - **ECON-3 侧车**：`include/rich4/mod_save.hpp` 新签名 `RICH4-MOD-ECON-3` 额外保存每玩家 30 种卡片的真实数量；旧 `RICH4-MOD-ECON-2` 与 `RICH4-MOD-TOOLS-1` 仍可按旧逻辑回读。DAT 保存仍使用原版卡片字节预览，完整数量仅存在 `.DAT.mod`；新 DAT 末尾带 `RICH4-MOD-COMPANION-REQUIRED-3` 标识，缺少侧车时拒读防止静默丢堆叠。注意跨文件写入仍非原子事务，**必须三文件组合备份**；旧版无标记的数据可能无法识别丢失侧车，不得承诺灾难恢复。
 - **回归与编译失败历史**：初版道具修复 38870503313 因旧测试仍断言 9 上限失败，测试更新后 [38870705276](https://github.com/lly8666/richman4-remastered/actions/runs/38870705276) success；卡片堆叠中间先因 `PlayerState.cards` 未接入新类型、再因测试缺引用报编译错误，补齐后 [38871735937](https://github.com/lly8666/richman4-remastered/actions/runs/38871735937) success；卡片商店/侧车落盘检查 [38872075063](https://github.com/lly8666/richman4-remastered/actions/runs/38872075063) success；后续高额交易边界测试先因错误 fixture 数量少于要约量失败，银行测试一开始用了经过而非停靠银行的随机种子，修正两项测试设置后 [38873119777](https://github.com/lly8666/richman4-remastered/actions/runs/38873119777) **36/36 success**。
 - **交付限制**：正确的 Android MOD 工作流仍绑定 `8bc6eb54c92a205001ed699786394f930c242457`，成功的旧版 APK [38853125080](https://github.com/lly8666/qairt-sdk-archive/actions/runs/38853125080) **不包含以上代码**。只向源码 `mod` 提交，本轮没有碰 `main` 或构建仓库 `main`；需要用户明确给出可动的单独 Android MOD 打包方式再交付新版 APK。新的界面尚未独立 Android/SDL3 编译、签名、真机审查。真实用户存档未作为输入，不能替用户宣称现存坏档已修复。
+
+
+## 12. 2026-10-16 用户实际交易顺序复盘（股价 1000 → 2000 → 10000 → 20000）
+
+- 用户报告两笔约 4.5 亿购股、股价 10000 时贷款约 8 亿继续购股、股价 20000 多时出售，随后看到贷款约 18 亿和现金全扣光，早先还出现负净值。**目前未取得出问题的存档/截图、用户是否开启 AI 托管或是否经历到期日，真实“贷款增加 10 亿”的单一路径不能下定论。**
+- 核查 `src/stocks.cpp::buy_stock/sell_stock`：卖股只变动股票持仓、市场配额、银行存款及公司股东顺序；**不会直接增加 PlayerState.loan**。普通 loan 增长来源是 `GameSession::Impl::borrow`、AI 自动借款 `ai_bank_loan` 和命运 `apply_fortune_id(id==2)`。自动 AI 原始策略可能先归还旧贷款、后续再次借款；有无启用托管需要从真实会话辨别。
+- **真实找到的高额资金漏洞**：`src/game.cpp::open_bank` 电脑访问银行时曾调用 `(Extended(total)*Extended(target)).integer()`（原版 signed32 FISTP），当 151 亿卖股收入被 AI 重新分配现金时结果可能落为 `INT32_MIN`，导致现金负值和银行余额虚增。现改 `integer64()`，计算两个余额后一起提交，维持原浮点语义。
+- **额外修复的相关 32 位漏洞**：`src/events.cpp::income` 将旧 signed64 银行存款送入 signed32 `add`，收到新闻 23 的存款 10% 红利时会发生回绕，已改为 `mod::money_add`；命运 2“身份盗用新增贷款”的累计 loan 曾通过 signed32 `add` 截断，改为 checked signed64。
+- **针对用户步骤的精确回归**：银行初始 9 亿，股价 1000 买 45 万股（4.5 亿），2000 买 22.5 万股（4.5 亿），10000 借 8 亿买 8 万股，20000 卖 75.5 万股，所得 `15,100,000,000`，贷款 `800,000,000` 不变，现金 `10,000,000` 不变，净资产 `14,310,000,000`；新 DAT+ECON-3 重新载入精确一致。附属回归验证 AI 在持有 151 亿银行存款时能将约 75% 调整为现金且资金总额保持不变，命运已有 30 亿贷款时再加 1 万不截断，以及新闻 23 对 151 亿存款奖励 15.1 亿后资金正确。
+- **证据**：[修复提交 `8c55837c`](https://github.com/lly8666/richman4-remastered/commit/8c55837cef6b4255462ac3fb2d4a0e75876f50de)，[GitHub 核心 CI `38876053524`](https://github.com/lly8666/richman4-remastered/actions/runs/38876053524) **36/36 success**。仅 `mod` 修改，原版 `main` 不变。Android MOD APK 仍 pin `8bc6eb54`，本次修复未打入 APK 或经过真机验收，现有游戏存档异常尚未自动修复。
