@@ -123,11 +123,12 @@ void transfer_effects() {
     require(!buy(w, 1, 0, 0).applied && w.players[0].state.tool_amounts[0] == 1,
             "Bank balance cannot fund market purchase");
     w.players[1].state.cash = 100000;
-    w.players[1].state.tool_amounts[0] = 9;
-    require(!buy(w, 1, 0, 0).applied, "Nine tools refuses without consuming seller item");
-    w.players[1].state.tool_amounts[0] = 8;
-    require(buy(w, 1, 0, 0).applied && w.players[1].state.tool_amounts[0] == 9 && w.tool_supply[0] == 10,
-            "Normal tool transfer leaves supply unchanged");
+    w.players[1].state.tool_amounts[0] = 999;
+    require(!buy(w, 1, 0, 0).applied && w.players[0].state.tool_amounts[0] == 1,
+            "MOD 999-tool cap refuses without consuming seller item");
+    w.players[1].state.tool_amounts[0] = 998;
+    require(buy(w, 1, 0, 0).applied && w.players[1].state.tool_amounts[0] == 999 && w.tool_supply[0] == 10,
+            "MOD player tool transfer reaches 999 and leaves supply unchanged");
     w = fixture();
     require(post(w, 0, {OfferKind::property, 2001, 1234, 0}).applied && buy(w, 1, 0, 0).applied,
             "Property transaction succeeds");
