@@ -98,9 +98,9 @@ void unit_tests() {
     check(world.commercials[1].owner_code == 2, "equal holding preserves incumbent after reinsertion");
 
     world = fixture();
-    world.stocks[0].shares_available = 65535;
-    world.stocks[0].flags_10 = 65535;
-    world.players[0].state.bank_balance = INT32_MAX;
+    world.stocks[0].shares_available = 100000000;
+    world.stocks[0].flags_10 = 100000000;
+    world.players[0].state.bank_balance = INT64_MAX;
     world.stocks[0].float_bits[2] = bits(1.0F);
     bool rejected = false;
     try {
@@ -108,10 +108,10 @@ void unit_tests() {
     } catch (const std::invalid_argument &) {
         rejected = true;
     }
-    check(rejected && world.stocks[0].shares_available == 65535 &&
-              world.players[0].state.bank_balance == INT32_MAX &&
+    check(rejected && world.stocks[0].shares_available == 100000000 &&
+              world.players[0].state.bank_balance == INT64_MAX &&
               world.players[0].stocks[0].amount == 1000,
-          "MOD must reject 16-bit share and 32-bit bank wrap before changing the sale");
+          "MOD must reject 64-bit balance and 100-million share cap before changing sale");
     rejected = false;
     try {
         rich4::stocks::sell_stock(world, 0, 0, 1001, true);
@@ -133,17 +133,41 @@ void unit_tests() {
     check(rich4::stocks::adjusted_price(1.0F, -10.0F) == 1.0F, "lower price clamp");
     check(rich4::stocks::adjusted_price(999999.0F, 10.0F) == 999999.0F, "MOD upper price clamp");
 
-    // High-price boundary: one share is safe, but 3000 * 999999
-    // exceeds int32 and must not mutate balances or holdings.
+    // High-price boundary: > INT32_MAX proceeds are valid and exact in MOD.
     world = fixture();
     world.stocks[0].float_bits[2] = bits(999999.0F);
     world.players[0].stocks[0].amount = 3000;
-    rejected = false;
-    try {
-        rich4::stocks::sell_stock(world, 0, 0, 3000, true);
-    } catch (const std::invalid_argument &) { rejected = true; }
-    check(rejected && world.players[0].stocks[0].amount == 3000,
-          "MOD high-price sale must be rejected atomically on overflow");
+    const auto large_sale = rich4::stocks::sell_stock(world, 0, 0, 3000, true);
+    check(large_sale.proceeds == INT64_C(2999997000) &&
+              world.players[0].state.bank_balance == INT64_C(3000007000) &&
+              world.players[0].stocks[0].amount == 0,
+          "MOD must credit high-price sales above signed32 without losing cents");
+
+    // Multiply original market volume x10000: 50 million shares @999999
+    // is 49,999,950,000,000, bank and net asset stay positive and exact.
+    world = fixture();
+    world.stocks[0].flags_4 = 0;
+    world.stocks[0].shares_available = world.stocks[0].flags_10 = 100000000;
+    world.stocks[0].float_bits[2] = bits(999999.0F);
+    world.players[0].stocks[0].amount = 0;
+    world.players[0].stocks[0].raw_cost_basis = 0;
+    world.players[0].state.cash = 900000000;
+    world.players[0].state.bank_balance = INT64_C(100000000000000);
+    const auto before_wealth = rich4::stocks::player_wealth(world, 0);
+    const auto huge_buy = rich4::stocks::buy_stock(world, 0, 0, 50000000, true);
+    check(huge_buy.cost == INT64_C(49999950000000) &&
+              world.players[0].state.bank_balance == INT64_C(50000050000000) &&
+              world.players[0].stocks[0].amount == 50000000 &&
+              world.stocks[0].shares_available == 50000000 &&
+              rich4::stocks::player_wealth(world, 0) == before_wealth,
+          "MOD 50-million share buy must conserve exact net assets without wraps");
+    const auto huge_sell = rich4::stocks::sell_stock(world, 0, 0, 50000000, true);
+    check(huge_sell.proceeds == huge_buy.cost &&
+              world.players[0].state.bank_balance == INT64_C(100000000000000) &&
+              world.stocks[0].shares_available == 100000000 &&
+              world.players[0].stocks[0].amount == 0 &&
+              rich4::stocks::player_wealth(world, 0) == before_wealth,
+          "MOD high-volume stock sell must restore the exact cash and share supply");
 
     world = fixture();
     const auto purchase = rich4::stocks::buy_stock(world, 3, 0, 500, true);
