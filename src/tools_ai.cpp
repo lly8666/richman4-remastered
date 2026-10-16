@@ -2,6 +2,7 @@
 // Readable port of mytbk/rich4 asm/rich4_ai_use_tool.asm and the AI branch
 // in rich4_ui_use_tool.asm. Original program: Rich4 v3.11 (Softstar).
 #include "rich4/tools_ai.hpp"
+#include "rich4/mod_rules.hpp"
 #include "rich4/board_renderer.hpp"
 #include "rich4/legacy_float.hpp"
 
@@ -226,7 +227,7 @@ Result predicate(const World &world, Random &random, std::size_t actor, unsigned
     const auto &player = world.players[actor];
     const auto self = actor + 1;
     const auto cash = player.state.cash;
-    const auto funds = add(cash, player.state.bank_balance);
+    const auto funds = mod::money_add(cash, player.state.bank_balance);
     const auto fortune = player.status.money_fortune_modifier;
     const auto traffic = player.state.traffic_method & 3U;
     if (tool == 5 || tool == 6) {

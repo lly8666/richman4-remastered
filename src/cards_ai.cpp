@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "rich4/cards.hpp"
+#include "rich4/mod_rules.hpp"
 #include "rich4/legacy_float.hpp"
 #include "rich4/services.hpp"
 #include "rich4/stocks.hpp"
@@ -194,20 +195,22 @@ bool predicate(const World &w, Random &random, std::size_t actor, unsigned id, c
     };
     switch (id) {
     case 1: {
-        std::int32_t sum = 0, n = 0;
+        __int128 sum = 0;
+        std::int32_t n = 0;
         for (const auto &p : w.players)
             if (p.state.controller_flags) {
-                sum = add(sum, p.state.cash);
+                sum += p.state.cash;
                 ++n;
             }
-        return n && sum / n > mul(player.state.cash, 10) && player.state.cash < mul(index, 3000);
+        return n && sum / n > __int128(player.state.cash) * 10 &&
+               player.state.cash < mul(index, 3000);
     }
     case 2:
     case 26: {
         const auto candidates = scanned_players(w, actor, scan());
         const auto qualifies = [&](std::size_t i, int threshold, int factor) {
             return w.players[i].state.cash > mul(index, threshold) &&
-                   (id == 26 || w.players[i].state.cash > mul(player.state.cash, factor));
+                   (id == 26 || __int128(w.players[i].state.cash) > __int128(player.state.cash) * factor);
         };
         if (foe >= 0 &&
             std::find(candidates.begin(), candidates.end(), std::size_t(foe)) != candidates.end() &&
@@ -433,7 +436,7 @@ bool predicate(const World &w, Random &random, std::size_t actor, unsigned id, c
                 const auto &p = w.lands[current - 2000];
                 if (p.economy.owner_code == actor + 1 && !p.economy.chain_store && p.economy.level < 5 &&
                     mul(p.price_per_level, index) < player.state.cash &&
-                    add(player.state.cash, player.state.bank_balance) > 10000 &&
+                    mod::money_add(player.state.cash, player.state.bank_balance) > 10000 &&
                     player.status.money_fortune_modifier >= 0) {
                     for (std::size_t i = 1; i < w.lands.size(); ++i)
                         if (i != current - 2000 &&
@@ -687,7 +690,7 @@ bool predicate(const World &w, Random &random, std::size_t actor, unsigned id, c
                 }
             }
         if (!danger && double(sum) * 1.5 < player.state.cash && opportunities >= 2 &&
-            add(player.state.cash, player.state.bank_balance) > 10000 &&
+            mod::money_add(player.state.cash, player.state.bank_balance) > 10000 &&
             player.status.money_fortune_modifier >= 0)
             return target(actor_code(unsigned(actor)));
         for (auto victim : scanned_players(w, actor, scan())) {

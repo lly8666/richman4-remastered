@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "rich4/cards.hpp"
+#include "rich4/mod_rules.hpp"
 #include "rich4/calendar.hpp"
 #include "rich4/legacy_float.hpp"
 #include "rich4/services.hpp"
@@ -286,30 +287,33 @@ CardResult apply_card(World &w, Random &random, std::size_t actor, const CardUse
     };
     switch (id) {
     case 1: {
-        std::int32_t sum = 0, count = 0;
+        __int128 sum = 0;
+        std::int64_t count = 0;
         for (const auto &p : w.players)
             if (p.state.controller_flags) {
-                sum = add32(sum, p.state.cash);
+                sum += p.state.cash;
                 ++count;
             }
-        const auto average = sum / count;
+        const auto average = static_cast<std::int64_t>(sum / count);
         consume(w, actor, id);
         say(cb, actor, 0, id, 3);
         for (std::size_t i = 0; i < w.players.size(); ++i)
             if (w.players[i].state.controller_flags) {
                 auto &cash = w.players[i].state.cash;
                 if (cash > average)
-                    hostility(w, cb, i, actor, add32(cash, -average) / 100);
+                    hostility(w, cb, i, actor, mod::display_i32(mod::money_sub(cash, average) / 100));
                 cash = average;
             }
         return used();
     }
     case 2: {
-        const auto average = add32(player.state.cash, w.players[target].state.cash) / 2;
+        const auto average = static_cast<std::int64_t>(
+            (__int128(player.state.cash) + w.players[target].state.cash) / 2);
         consume(w, actor, id);
         say(cb, actor, 0, id, 3);
         if (w.players[target].state.cash > average)
-            hostility(w, cb, target, actor, add32(w.players[target].state.cash, -average) / 100);
+            hostility(w, cb, target, actor,
+                      mod::display_i32(mod::money_sub(w.players[target].state.cash, average) / 100));
         player.state.cash = average;
         w.players[target].state.cash = average;
         say(cb, target, 2, id, 1);
@@ -644,8 +648,9 @@ CardResult apply_card(World &w, Random &random, std::size_t actor, const CardUse
             return missing();
         consume(w, actor, id);
         say(cb, actor, 0, id, 0);
-        hostility(w, cb, target, actor, tax / 100);
-        if (has_card(w.players[target].state.cards, 20) && cb.try_free(target, actor, tax))
+        hostility(w, cb, target, actor, mod::display_i32(tax / 100));
+        if (has_card(w.players[target].state.cards, 20) &&
+            cb.try_free(target, actor, mod::display_i32(tax)))
             return used();
         auto payer = std::int32_t(target);
         if (has_card(w.players[target].state.cards, 19) && tax > 2000) {
