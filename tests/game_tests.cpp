@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "rich4/services.hpp"
+#include "rich4/stocks.hpp"
+#include <bit>
 #include "rich4/calendar.hpp"
 #include "rich4/game.hpp"
 #include "rich4/mod_save.hpp"
@@ -1195,6 +1197,47 @@ void god_card_arrival_presentation_order() {
     require(gift.world().players[0].state.cards[0] == reward->value,
             "displayed reward card must be the card actually added to the player's bag");
 }
+void mod_loan_stock_session_roundtrip() {
+    auto value = world();
+    for (auto &node : value.nodes)
+        node.flags = (node.flags & ~255U) | 14;
+    value.players[0].state.cash = 900'000'000;
+    value.players[0].state.bank_balance = 900'000'000;
+    value.players[0].stocks.fill({});
+    value.stocks[0].flags_4 = 0;
+    value.stocks[0].shares_available = 100'000'000;
+    value.stocks[0].flags_10 = 100'000'000;
+    value.stocks[0].float_bits[2] = std::bit_cast<std::uint32_t>(999999.0F);
+    rich4::GameSession bank(std::move(value), 7);
+    first_landing(bank);
+    require(bank.pending_decision() && bank.pending_decision()->kind == rich4::DecisionKind::bank,
+            "MOD loan integration must reach bank decision");
+    const auto before = rich4::stocks::player_wealth(bank.world(), 0);
+    const auto &options = bank.pending_decision()->options;
+    const auto it = std::find_if(options.begin(), options.end(), [](const auto &entry) {
+        return entry.value == 3;
+    });
+    require(it != options.end() && bank.respond(std::size_t(it - options.begin()), 800'000'000),
+            "MOD 800m real-game loan rejected");
+    auto invested = bank.world();
+    require(invested.players[0].state.loan == 800'000'000 &&
+                invested.players[0].state.bank_balance == 1'700'000'000 &&
+                rich4::stocks::player_wealth(invested, 0) == before,
+            "actual bank loan must increase bank and debt equally");
+    const auto bought = rich4::stocks::buy_stock(invested, 0, 0, 1000, true);
+    require(bought.cost == 999'999'000 &&
+                rich4::stocks::player_wealth(invested, 0) == before,
+            "loan-funded stock buy must preserve wealth at unchanged market quote");
+    auto dat = invested.export_save();
+    rich4::mod::mark_mod_save(dat);
+    const auto extension = rich4::mod::encode_tool_extension(invested, dat);
+    auto loaded = rich4::World::from_save(rich4::SaveFile::decode(dat));
+    rich4::mod::apply_tool_extension(loaded, dat, extension);
+    require(loaded.players[0].state.loan == 800'000'000 &&
+                loaded.players[0].stocks[0].amount == 1000 &&
+                rich4::stocks::player_wealth(loaded, 0) == before,
+            "actual loan and stock purchase must roundtrip in ECON-3 without phantom losses");
+}
 void loan_and_free_toll() {
     auto value = world();
     for (auto &node : value.nodes)
@@ -1700,6 +1743,7 @@ int main() {
         god_spinner_presentation_order();
         native_actions_and_money_spinner();
         god_card_arrival_presentation_order();
+        mod_loan_stock_session_roundtrip();
         loan_and_free_toll();
         special_financing();
         computer_atm_financing();
