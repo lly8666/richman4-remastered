@@ -1,5 +1,5 @@
 # 《大富翁4》原版重构与 MOD：开发全历史和可核查索引
-更新：2026-10-16。本记录收录 **截至 `24ace66441b5cfe0dea607fd0762513058de99f4` 的 367 条可达 Git 提交记录**，由远端提交历史自动汇总；它不是声称能够复原没有落入 Git 的私人聊天、临时调试或丢失的构建产物。
+更新：2026-10-16。本记录收录 **截至 `0a0dc1ecdb6beb29d11a4f160ccbb93cc0a7fdcf` 的 377 条可达 Git 提交记录**，由远端提交历史自动汇总；它不是声称能够复原没有落入 Git 的私人聊天、临时调试或丢失的构建产物。
 
 ## 一、项目与分支
 - 源代码：[richman4-remastered](https://github.com/lly8666/richman4-remastered)；标准重构 `main` 用于尽力贴合 Windows 大富翁4 v3.11。
@@ -35,12 +35,22 @@
 - 原始游戏点券 16 bit，MOD 已让大笔道具销售点券饱和于 65535；是否继续拓宽属于另一个独立兼容性决策。
 - 此文档的附录提供所有可核查提交。分支继续演进时可按同一 GitHub API 列表重新生成附录，不要错误称其自动实时更新。
 
-## 四、提交历史附录（截至 24ace66441b5，按新到旧）
+## 四、提交历史附录（截至 0a0dc1ecdb6b，按新到旧）
 
 以下包含本轮资金/股市增容、编译失败及随后的修正；每条均链接到不可变的完整 Git commit。
 
 | 日期 (UTC) | 完整提交链接（短 SHA） | 变更标题 |
 |---|---|---|
+| 2026-10-16 | [`0a0dc1ecdb6b`](https://github.com/lly8666/richman4-remastered/commit/0a0dc1ecdb6beb29d11a4f160ccbb93cc0a7fdcf) | MOD regression: large-wallet toll avoids bogus framing and shows incident cue before choice |
+| 2026-10-16 | [`30668eede14e`](https://github.com/lly8666/richman4-remastered/commit/30668eede14e9ce0bad04fff5561cc6be623c29a) | MOD: show toll trigger before framing choice and fix 32-bit affordability overflow |
+| 2026-10-16 | [`191c621687c4`](https://github.com/lly8666/richman4-remastered/commit/191c621687c46a8b5744cb44c0c2321f7cc533c7) | MOD: reusable compact Chinese financial formatting with exact-amount regression tests |
+| 2026-10-16 | [`9203114b21eb`](https://github.com/lly8666/richman4-remastered/commit/9203114b21eb5a034bbb518d38888bab6b20ed8a) | MOD UI: fit large stock, auction, trading and event money into original panels |
+| 2026-10-16 | [`59cdea8f45eb`](https://github.com/lly8666/richman4-remastered/commit/59cdea8f45ebf193f62758fc27de6795058821c3) | MOD test: supply prison destination for completed frame-card fortune |
+| 2026-10-16 | [`e89c6f9fa6ce`](https://github.com/lly8666/richman4-remastered/commit/e89c6f9fa6ce6a6129d499317a8bd86c591c11ec) | MOD UX: show fortune or news cue before framing-card choice, settle event afterward |
+| 2026-10-16 | [`d29915e25971`](https://github.com/lly8666/richman4-remastered/commit/d29915e25971187deaad6573856f24a61c2a4652) | MOD: regression for 15b deposit, 23b withdrawal and overflow refusal |
+| 2026-10-16 | [`3139168ea044`](https://github.com/lly8666/richman4-remastered/commit/3139168ea0444330b742152de87158cdbab50f32) | MOD UI: readable 万/亿/万亿 financial units, preserve exact 64-bit edit values |
+| 2026-10-16 | [`6b7b6ea1dcd7`](https://github.com/lly8666/richman4-remastered/commit/6b7b6ea1dcd7b59bb6645c3e69a964f4a9f2d299) | MOD: allow signed64 bank deposits, withdrawals and repayments through keypad and core |
+| 2026-10-16 | [`6c0dc09a559d`](https://github.com/lly8666/richman4-remastered/commit/6c0dc09a559d829ffbe65b224229569f850568e9) | MOD docs: document complete wide-money audit, ECON-4 compatibility and remaining ABI risks |
 | 2026-10-16 | [`24ace66441b5`](https://github.com/lly8666/richman4-remastered/commit/24ace66441b5cfe0dea607fd0762513058de99f4) | MOD: restore full rule checkpoint on wide-money overflow before propagating error |
 | 2026-10-16 | [`55a63d7bc6f8`](https://github.com/lly8666/richman4-remastered/commit/55a63d7bc6f887484e803d8a830a249affb96092) | MOD: avoid INT64_MIN negation overflow in checked finance subtraction |
 | 2026-10-16 | [`ee2884c07ee4`](https://github.com/lly8666/richman4-remastered/commit/ee2884c07ee4d59cc38585ffa9aa6e56728c1636) | MOD regression: dividend overflow must not partially clear company funds |

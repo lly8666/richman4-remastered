@@ -186,3 +186,15 @@ ctest --test-dir build/ci --output-on-failure --parallel 3
 5. **Android 打包/真机**：独立 `qairt-sdk-archive/main` 中 Android MOD 工作流仍 pin `8bc6eb54`（2026-10-16 的旧代码）。按用户命令本轮只提交源码 `mod`，没改另一仓库 `main`。没有重新 Android 编译、签名和真机验收，屏幕排版长金额仍需重点确认。原版源 `main` 没有修改。
 
 **下一位 Agent：** 先在最新 `mod` 上重复 core CI，再做 Android/SDL3 全量构建与屏幕财务字段尺寸检查，针对 64 位交易报错改友好 UI，继续审计剩余老 ABI 窄化而不要破坏原 DAT。用户问题中贷款由约 8 亿变 18 亿仍未取得实际存档，不能据此断言原因已唯一定位。
+
+
+## 14. 2026-10-17：嫁祸卡提示前置、大额银行 ATM 与 UI 紧凑金额
+
+源码 HEAD `0a0dc1ecdb6beb29d11a4f160ccbb93cc0a7fdcf`，GitHub [core CTest #38934508620](https://github.com/lly8666/richman4-remastered/actions/runs/38934508620) **36/36 success**。关联 Android MOD builder [#38934629203](https://github.com/lly8666/qairt-sdk-archive/actions/runs/38934629203) pinned `0a0dc1ecdb6beb29d11a4f160ccbb93cc0a7fdcf`；完成/签名/产物请自行以工作流实际结论为准，不能把已触发说成已经成功。
+
+1. **用户反馈嫁祸选择出现在事件发生之前。** `src/game.cpp::resolve_event` 之前 `screen_first` 遇到 `NeedChoice` 会清除事件展示并在回答后才 emit 新闻/命运公告，用户看不到事件原因就被迫选嫁祸对象。本次保留规则原子 replay，给相关 human `card_target` 插入仅展示的新闻/命运事件预告（按命运/新闻选卡 ID、照片与音效），之后选定嫁祸目标，再正式结算真实事件；非事件选择不受影响。`src/game.cpp::select_toll_payer` 对大额钱包仍使用 `add32(cash,bank_balance)` 判断过路费是否足以触发嫁祸，已改 `__int128` 比较并在真实高额过路费选择前插入收费原因提示。严格禁止在预告阶段扣卡、计数、转账或关状态；回归覆盖初始余额大、少额过路费不弹嫁祸、真实收费弹框先提示事件、拒绝后正常入账与命运关押目标场景。
+2. **银行存取/还款真正 64 位**：`include/rich4/game.hpp::respond(option,int64)` 和 `tools/screens/finance.hpp` `NumberPad/BankActions` 等 UI 全链路改 signed64；ATM 滑杆用 `__int128` 内部乘法防溢出，19 位数字上限、MAX 一键全部、触屏放大键盘与十位以上数字独立精确文本。core 验证一次存 151 亿再一次取 231 亿且拒绝近 INT64_MAX 非原子转账。**注意** 新贷款 `borrow(int32)` 和董事长融资 `change_financing(int32)` 原版每笔上限仍 int32，但偿还已有贷款的 `repay(int64)` 现支持一次清偿超过 21 亿。主账户总资产当然不受这两个单笔交易协议宽度制约。
+3. **中国金融单位、UI 防超格**：`include/rich4/mod_money_format.hpp` 为纯展示函数 `grouped_digits`（准确数字）与 `compact_money`（按万/亿/万亿/京简写、若近似加 ≈，支持 INT64_MIN/MAX）；`tools/native_ui.hpp::money` 和 `screens::financial` 统一，大额股票交易、企业、彩票、月结、资产、银行侧栏和新闻行不再使用十几位原数字强挤固定列，股票股数等**非金钱**量仍保留准确数，不误缩写为元。资金计算和 DAT/ECON-4 存档仍使用完整整数；已有纯显示视觉测试以 Android/SDL3 构建及真机为准。
+4. **此轮源码 CI** [38932681378](https://github.com/lly8666/richman4-remastered/actions/runs/38932681378)、[38933168075](https://github.com/lly8666/richman4-remastered/actions/runs/38933168075)、[38933911818](https://github.com/lly8666/richman4-remastered/actions/runs/38933911818)、[38934508620](https://github.com/lly8666/richman4-remastered/actions/runs/38934508620) 均 success；早期实验 #38933673593 因新测试未放置监狱地图出口导致失败，已修正，**不是发布失败的遗留逻辑**。项目源码 `main` 不受影响。独立 builder 仓库原先旧 SHA 构建不是这版，不要混淆。
+
+下轮重点：试机检查大额 ATM 全数字编辑框横向空间、手机触屏点按和金额近似字体支持；可考虑银行单次新增贷款与董事长融资协议进一步 64 位改造及跨三文件保存事务，但需联动业务范围和旧 DAT，不能粗暴扩 C++ 字段。保留真机不曾测过的诚实状态。
