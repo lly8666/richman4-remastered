@@ -3090,10 +3090,29 @@ struct GameSession::Impl {
         run_rule([this, news] {
             const auto position = events.size();
             const auto effect_count = effects.size();
-            const auto result = screen_first([&] {
-                return news ? apply_news(world, random, event_callbacks())
-                            : apply_fortune(world, random, actor(), event_callbacks());
-            });
+            // Selection is pure and does not consume RNG; remember the story
+            // card so the framing dialog can follow an event cue, not precede
+            // any indication of which news/fortune is being defended against.
+            const auto chosen = news ? select_news(world) : select_fortune(world, actor());
+            EventResult result;
+            try {
+                result = screen_first([&] {
+                    return news ? apply_news(world, random, event_callbacks())
+                                : apply_fortune(world, random, actor(), event_callbacks());
+                });
+            } catch (const NeedChoice &choice) {
+                if (choice.decision.kind == DecisionKind::card_target) {
+                    // A narration-only preview plays before the decision. The
+                    // actual story (including selected victim, numbers, and
+                    // mutations) still resolves after the answer, exactly once.
+                    GameEvent lead{GameEventKind::notice, actor(), 0, player().node_id,
+                                   "MOD_FRAME_EVENT_PREVIEW"};
+                    lead.announcement = news ? Announcement::news : Announcement::fortune;
+                    lead.announcement_id = chosen.event_id;
+                    events.push_back(std::move(lead));
+                }
+                throw;
+            }
             if (!result.supported)
                 throw UnsupportedRule{result.message};
             announce_event(news, actor(), result, position);

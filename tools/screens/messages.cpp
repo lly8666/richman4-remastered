@@ -190,6 +190,11 @@ Item news_item(const GameEvent &event, const World &world) {
     item.photo = 441 + id;
     item.title = news_title(id);
     item.voice = 149 + id;
+    if (event.message == "MOD_FRAME_EVENT_PREVIEW") {
+        item.text = "新聞事件已觸發\n請先選擇嫁禍對象";
+        item.minimum_ms = 1200;
+        return item;
+    }
     item.minimum_ms = 2400;
     item.wait_voice = true;
     const auto body = news_bodies[id];
@@ -228,6 +233,11 @@ Item fortune_item(const GameEvent &event, const World &world) {
     item.photo = fortune_photos[id];
     item.voice = 185 + id;
     item.minimum_ms = 1600;
+    if (event.message == "MOD_FRAME_EVENT_PREVIEW") {
+        item.text = "命運事件已觸發\n請先選擇嫁禍對象";
+        item.minimum_ms = 1200;
+        return item;
+    }
     item.wait_voice = true;
     item.text = format(fortune_bodies[id], {std::int64_t(event.value)});
     if (event.player < world.players.size())

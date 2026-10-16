@@ -534,6 +534,34 @@ void alliance_rent() {
                 free.world().players[0].status.hostility[2] == 20,
             "free card must not erase original pre-defense hostility");
 }
+void mod_frame_card_event_preview_order() {
+    bool found = false;
+    for (std::uint32_t seed = 0; seed < 64 && !found; ++seed) {
+        auto v = world();
+        for (auto &node : v.nodes)
+            node.flags = (node.flags & ~255U) | 3; // Fortune tile
+        v.fortune_deck.fill(33); // Prison fortune; eligible framing card
+        v.fortune_cursor = 0;
+        v.players[0].state.cards = {19};
+        rich4::GameSession game(std::move(v), seed);
+        first_landing(game);
+        if (!game.pending_decision() ||
+            game.pending_decision()->kind != rich4::DecisionKind::card_target)
+            continue; // Some seeds are protected by an attached fortune modifier.
+        found = true;
+        const auto events = game.drain_events();
+        require(std::any_of(events.begin(), events.end(), [](const auto &event) {
+                    return event.message == "MOD_FRAME_EVENT_PREVIEW" &&
+                           event.announcement == rich4::Announcement::fortune;
+                }) && game.world().fortune_cursor == 0 &&
+                game.world().players[0].state.cards[0] == 19,
+                "fortune event cue must appear before framing choice without mutating the result");
+        require(game.respond(game.pending_decision()->options.size() - 1) &&
+                    game.world().fortune_cursor == 1,
+                "framing decision should replay and settle the chosen fortune once");
+    }
+    require(found, "fixture must reach an active framing prompt");
+}
 void mod_64bit_bank_deposit_and_withdraw() {
     auto v = world();
     for (auto &node : v.nodes)
@@ -1967,6 +1995,7 @@ int main() {
         land_god_own_upgrade();
         property_and_rent();
         alliance_rent();
+        mod_frame_card_event_preview_order();
         mod_64bit_bank_deposit_and_withdraw();
         bank_and_failure();
         thirty_days_and_timing();
