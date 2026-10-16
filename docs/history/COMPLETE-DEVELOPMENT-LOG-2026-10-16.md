@@ -1,5 +1,5 @@
 # 《大富翁4》原版重构与 MOD：开发全历史和可核查索引
-更新：2026-10-16。本记录收录 **GitHub 当前 `mod` 分支可达的全部 317 条提交记录**，由远端提交历史自动汇总；它不是声称能够复原没有落入 Git 的私人聊天、临时调试或丢失的构建产物。
+更新：2026-10-16。本记录收录 **GitHub 当前 `mod` 分支可达的全部 325 条提交记录**，由远端提交历史自动汇总；它不是声称能够复原没有落入 Git 的私人聊天、临时调试或丢失的构建产物。
 
 ## 一、项目与分支
 - 源代码：[richman4-remastered](https://github.com/lly8666/richman4-remastered)；标准重构 `main` 用于尽力贴合 Windows 大富翁4 v3.11。
@@ -35,12 +35,20 @@
 - 原始游戏点券 16 bit，MOD 已让大笔道具销售点券饱和于 65535；是否继续拓宽属于另一个独立兼容性决策。
 - 此文档的附录提供所有可核查提交。分支继续演进时可按同一 GitHub API 列表重新生成附录，不要错误称其自动实时更新。
 
-## 四、提交历史附录（截至文档本次更新，按新到旧）
+## 四、提交历史附录（截至 f1855b50ca60，按新到旧）
 
 以下包含本轮资金/股市增容、编译失败及随后的修正；每条均链接到不可变的完整 Git commit。
 
 | 日期 (UTC) | 完整提交链接（短 SHA） | 变更标题 |
 |---|---|---|
+| 2026-10-16 | [`f1855b50ca60`](https://github.com/lly8666/richman4-remastered/commit/f1855b50ca601dd441f47b0d9717fae33a226396) | MOD test: trillion-dollar month-end deposit, 10% interest and champion preserve full int64 |
+| 2026-10-16 | [`07ac4d79b557`](https://github.com/lly8666/richman4-remastered/commit/07ac4d79b557c3cbe2c253d63d5cd0a4f0bbe472) | MOD: prevent month-end interest and champion ranking from truncating 64-bit deposits/assets |
+| 2026-10-16 | [`c80cbfb6dafa`](https://github.com/lly8666/richman4-remastered/commit/c80cbfb6dafa57c5556d857c4f9e87b793911549) | MOD: preserve full 64-bit balances, total wealth and lottery pool in month-end UI |
+| 2026-10-16 | [`8f96b39c9cc2`](https://github.com/lly8666/richman4-remastered/commit/8f96b39c9cc2fb047965ceefdd77e214e0342255) | MOD Android: explicitly bound 64bit AI sale quantity to supported per-trade 32bit count |
+| 2026-10-16 | [`d539279a5ec6`](https://github.com/lly8666/richman4-remastered/commit/d539279a5ec631e031c20e38b7b26eb461f7b8a7) | MOD ARM64: explicitly bound primary share picker max to int32 after 10m cap |
+| 2026-10-16 | [`a2db20b227f3`](https://github.com/lly8666/richman4-remastered/commit/a2db20b227f33e5f6b19de376761ae22fb0e1c75) | MOD: collect full 64-bit loan and financing debts on due dates without truncating to 32-bit |
+| 2026-10-16 | [`902c104c78d7`](https://github.com/lly8666/richman4-remastered/commit/902c104c78d76a0a747fda9cb31421ae334264f6) | MOD: display full director-bank liquidity and clamp per-operation number pad to signed32 safe range |
+| 2026-10-16 | [`487289f6214b`](https://github.com/lly8666/richman4-remastered/commit/487289f6214bc26e7a3b548e66b8578990d5a6ec) | MOD: refresh complete 317-commit development archive including 900m/64bit stock work |
 | 2026-10-16 | [`99712ca5c03f`](https://github.com/lly8666/richman4-remastered/commit/99712ca5c03fba222e8c4c26558b9f93b846485c) | MOD: document 900m tier, 10000x shares, 64-bit net worth, versioned financial sidecar and limitations |
 | 2026-10-16 | [`3fc9158f3b68`](https://github.com/lly8666/richman4-remastered/commit/3fc9158f3b682dd741ecd2453a7952b95664ed85) | MOD: retain vanilla 200000 default after adding both 30m and 900m start funds |
 | 2026-10-16 | [`393c2632805e`](https://github.com/lly8666/richman4-remastered/commit/393c2632805e8d0ccabbbe4c8bda4e55fdaaa2ae) | MOD CI: test every source and fixture commit to catch cross-module financial couplings |
