@@ -3535,7 +3535,7 @@ struct GameSession::Impl {
     // driven below zero is taken from cash, and a player whose cash also runs out goes bankrupt.
     void pay_dividends() {
         auto figures = monthly_figures();
-        std::array<std::int32_t, 4> totals{};
+        std::array<std::int64_t, 4> totals{}; // MOD dividends from 12 companies can exceed INT32_MAX
         for (std::size_t stock = 0; stock < world.stocks.size() && stock < 12; ++stock) {
             const auto id = world.stocks[stock].flags_4;
             if (!id || id >= world.commercials.size())
@@ -4004,6 +4004,8 @@ bool GameSession::buy_stock(std::size_t stock, std::int32_t quantity) {
         return false;
     } catch (const std::out_of_range &) {
         return false;
+    } catch (const std::overflow_error &) {
+        return false;
     }
 }
 bool GameSession::sell_stock(std::size_t stock, std::int32_t quantity) {
@@ -4020,6 +4022,8 @@ bool GameSession::sell_stock(std::size_t stock, std::int32_t quantity) {
     } catch (const std::invalid_argument &) {
         return false;
     } catch (const std::out_of_range &) {
+        return false;
+    } catch (const std::overflow_error &) {
         return false;
     }
 }
