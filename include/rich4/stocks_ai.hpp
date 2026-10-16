@@ -13,7 +13,7 @@ namespace stocks_ai {
 struct Trade {
     std::size_t stock = 0;
     std::int32_t quantity = 0;
-    std::int32_t value = 0; // Purchase cost or sale proceeds, credited/debited to bank.
+    std::int64_t value = 0; // Purchase cost or sale proceeds, credited/debited to bank.
     bool commercial_owner_changed = false;
 };
 
