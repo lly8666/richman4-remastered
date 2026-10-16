@@ -5,6 +5,17 @@ on:
     paths:
       - src/game.cpp
       - src/world.cpp
+      - src/stocks.cpp
+      - src/stocks_ai.cpp
+      - src/services.cpp
+      - src/mod_save.cpp
+      - include/rich4/mod_save.hpp
+      - include/rich4/mod_rules.hpp
+      - include/rich4/save.hpp
+      - include/rich4/inventory.hpp
+      - include/rich4/stocks.hpp
+      - tests/stocks_tests.cpp
+      - tests/mod_finance_tests.cpp
       - include/rich4/game.hpp
       - include/rich4/world.hpp
       - tests/game_tests.cpp
