@@ -673,8 +673,8 @@ void PlayerInfo::draw_properties(Host &host, const World &world) {
         const int y = 144 + 32 * int(r);
         text(frame, row.place, 168, y, 2, cell);
         text(frame, row.development, 264, y, 2, cell);
-        text(frame, grouped(row.price), 398, y, 6, cell);
-        text(frame, grouped(row.toll), 490, y, 6, cell);
+        text(frame, financial(row.price), 398, y, 6, cell);
+        text(frame, financial(row.toll), 490, y, 6, cell);
         const auto date = calendar::unpack(row.expiry);
         text(frame, row.expiry ? format("%02lld/", date.month) + std::to_string(date.day) + "/" + std::to_string(date.year)
                                : std::string("無限期"),
@@ -709,7 +709,7 @@ void PlayerInfo::draw_stocks(Host &host, const World &world) {
         const auto value = std::int64_t(amount * double(std::bit_cast<float>(world.stocks[i].float_bits[2])));
         text(frame, native_stock_names.at(offset + i), 204, y, 2, header);
         text(frame, grouped(amount), 380, y, 6, header);
-        text(frame, grouped(value), 540, y, 6, header);
+        text(frame, financial(value), 540, y, 6, header);
     }
 }
 

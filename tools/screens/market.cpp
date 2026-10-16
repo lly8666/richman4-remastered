@@ -188,7 +188,7 @@ void TradingBoard::ask_price(const World &world, std::size_t actor, NumberPad &p
         view_ = View::board;
         return;
     }
-    prompt_ = "請輸入欲拍賣的價格\n\n（市價：" + std::to_string(limits->reference_price) + "元）";
+    prompt_ = "請輸入欲拍賣的價格\n\n（市價：" + financial(limits->reference_price) + "元）";
     suggestion_ = std::max(1, limits->reference_price);
     pad.open(limits->maximum_price, [this, actions, item, quantity](std::int32_t price) {
         prompt_.clear();
@@ -257,7 +257,7 @@ void TradingBoard::draw_picker(Host &host, const World &world, std::size_t actor
                                             double(std::bit_cast<float>(world.stocks.at(items[i].id).float_bits[2])));
             text(frame, item_name(world, OfferKind::stock, items[i].id), 200, y, 2, font_a);
             text(frame, grouped(items[i].maximum_quantity), 332, y, 6, font_a);
-            text(frame, grouped(value), 478, y, 6, font_a);
+            text(frame, financial(value), 478, y, 6, font_a);
             const graphics::Rect line{152, y - 16, 488, y + 16};
             if (frame.pointer_in(line))
                 outline_rect(frame.canvas, line, rgb(0xffffff));
@@ -293,8 +293,8 @@ void TradingBoard::draw_picker(Host &host, const World &world, std::size_t actor
             const int y = 112 + 32 * int(r);
             text(frame, row.place, 147, y, 2, font_a);
             text(frame, row.development, 231, y, 2, font_a);
-            text(frame, grouped(row.price), 319, y, 6, font_a);
-            text(frame, grouped(row.toll), 395, y, 6, font_a);
+            text(frame, financial(row.price), 319, y, 6, font_a);
+            text(frame, financial(row.toll), 395, y, 6, font_a);
             text(frame, lease(row.expiry), 471, y, 2, font_a);
             const graphics::Rect line{112, y - 16, 512, y + 16};
             if (frame.pointer_in(line))
@@ -549,7 +549,7 @@ int draw_room(Frame &frame, const World &world, std::uint16_t code, std::int32_t
     if (picture < frame.artwork.frame_count('p', 26))
         graphics::blit(frame.canvas, frame.artwork.frame('p', 26, picture), 232, 180);
     text(frame, "標價：", 182, 242, 0, auction_setup);
-    text(frame, std::to_string(price) + "元", 272, 262, 6, auction_setup);
+    text(frame, financial(price) + "元", 272, 262, 6, auction_setup);
     return seller;
 }
 
@@ -599,7 +599,7 @@ void AuctionRoom::draw(Host &host, const World &world, const GameDecision &decis
     }
     const auto price = bid_ ? bid_->price : decision.amount;
     const auto seller = draw_room(frame, world, decision.land_id, price, false);
-    announce(frame, "目前標價" + std::to_string(decision.amount) + "元\n請意者出價。");
+    announce(frame, "目前標價" + financial(decision.amount) + "元\n請意者出價。");
     const auto bid_frame = bid_ ? int((frame.ticks - bid_->started) / bid_frame_ms) : 0;
     draw_bidders(frame, world, decision.player, seller, [&](std::size_t k) {
         if (decision.inactive_players & (1U << k))
@@ -613,7 +613,7 @@ void AuctionRoom::draw(Host &host, const World &world, const GameDecision &decis
         graphics::blit(frame.canvas, frame.artwork.frame('p', 26, 1), 480, y - 15);
         const auto label = bid_->action == 0 ? std::string("ＰＡＳＳ")
                            : bid_->action == 6 ? std::string("放棄")
-                                               : std::to_string(bid_->price) + "元";
+                                               : financial(bid_->price) + "元";
         text(frame, label, 480, y - 15, 4, {16, 0x101010, 0, bold});
     }
     // Seven bid buttons: PASS, +100, +500, +1000, +5000, +10000, give up (ref_00475b84).
@@ -667,7 +667,7 @@ void AuctionRoom::draw_sold(Host &host, const World &world) {
     (void)draw_room(frame, world, sold_->property, sold_->price, true); // the lot now belongs to the winner
     const auto winner = sold_->winner;
     const std::string buyer = names.at(world.players[winner].state.character);
-    announce(frame, elapsed < sold_ms / 2 ? std::to_string(sold_->price) + "元成交" : "恭喜" + buyer + "\n購得此地！");
+    announce(frame, elapsed < sold_ms / 2 ? financial(sold_->price) + "元成交" : "恭喜" + buyer + "\n購得此地！");
     draw_bidders(frame, world, winner, -1, [&](std::size_t k) {
         return k == winner ? std::pair{2, int(elapsed / 100) % 5} : std::pair{0, 0}; // winner celebrates
     });

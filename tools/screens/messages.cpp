@@ -168,19 +168,22 @@ Item toll_box(const GameEvent &event, const World &world) {
     if (event.property > 4000) {
         // Facility charges (core_actions: hotel 0x4639ff, mall 0x463a14).
         if (event.announcement_id == 1)
-            return box(format("休息%d天\n\n費用%d元！", {std::int64_t(event.value), amount}));
+            return box("休息" + std::to_string(event.value) + "天\n\n費用" +
+                       ui::compact_money(amount, false) + "元！");
         if (event.announcement_id == 2 && event.value > 0)
-            return box(format("您的消費金額為\n\n%dx%d倍=%d元",
-                              {amount / event.value, std::int64_t(event.value), amount}));
+            return box("您的消費金額為\n\n" + ui::compact_money(amount / event.value, false) +
+                       "x" + std::to_string(event.value) + "倍=" +
+                       ui::compact_money(amount, false) + "元");
     }
     // Gas stations charge 加油費 (fee table 0x475184; facility mapping UNVERIFIED); lands 過路費.
     const char *fee = event.property > 4000 && event.announcement_id == 3 ? "加油費" : "過路費";
     const auto place = property_name(world, event.property);
     if (event.second_subject >= 0)
-        return box(format("%s\n\n屬%s與%s\n\n請付%d元%s",
-                          {place, player_name(world, event.subject), player_name(world, event.second_subject),
-                           amount, fee}));
-    return box(format("%s\n\n此地屬%s\n\n請付%d元%s", {place, player_name(world, event.subject), amount, fee}));
+        return box(place + "\n\n屬" + player_name(world, event.subject) + "與" +
+                   player_name(world, event.second_subject) + "\n\n請付" +
+                   ui::compact_money(amount, false) + "元" + fee);
+    return box(place + "\n\n此地屬" + player_name(world, event.subject) +
+               "\n\n請付" + ui::compact_money(amount, false) + "元" + fee);
 }
 
 Item news_item(const GameEvent &event, const World &world) {
