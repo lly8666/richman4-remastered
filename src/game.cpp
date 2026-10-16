@@ -1787,9 +1787,12 @@ struct GameSession::Impl {
                 other.status.allied_days = 0;
             }
         }
+        // rich4_player_bankrupt.asm: MIDI 2, Data[555] movie, then the
+        // 2-second hold / bankrupt or victory line. Never announce the
+        // outcome before showing the bankruptcy movie.
+        effect(EffectKind::bankrupt, slot, actor_point(slot)); // Data 555
         events.push_back(
             {GameEventKind::player_bankrupt, slot, 0, state.node_id, player_name(slot) + "破产"});
-        effect(EffectKind::bankrupt, slot, actor_point(slot)); // Data 555
         if (check_game_end())
             return;
         // Original 0x40d095 retains buildings and auctions three distinct
@@ -3727,8 +3730,9 @@ struct GameSession::Impl {
             entry.status.total_winter_sleep_days = 0;
             entry.status.cumulative_spending = entry.status.cumulative_income = 0;
         }
-        emit(GameEventKind::bank_transfer, "月结完成，无贷款玩家获得存款利息");
+        // Original month report appears before its settlement-complete cue.
         monthly_effect(EffectKind::month_report, std::move(report));
+        emit(GameEventKind::bank_transfer, "月结完成，无贷款玩家获得存款利息");
     }
     // MONTHLY (presentation only): fcn_00437dfe picks the champion, the strictly richest listed
     // player (ties keep the first); fcn_00437d1a picks the 悲情人物 by the score
@@ -3937,10 +3941,13 @@ struct GameSession::Impl {
             show.pool = world.public_fund;
             const auto draw = lottery::draw(world, random);
             if (draw.held) {
-                emit(GameEventKind::notice, "彩票开奖：" + std::to_string(draw.number), draw.payout);
                 show.number = draw.number;
                 show.winner = draw.winner ? static_cast<std::int32_t>(*draw.winner) : -1;
+                // The final winning number must not appear in the ticker
+                // until AFTER the host has spun the lottery cage and
+                // announced the winner. The core result is already settled.
                 monthly_effect(EffectKind::lottery_draw, std::move(show));
+                emit(GameEventKind::notice, "彩票开奖：" + std::to_string(draw.number), draw.payout);
             }
         }
         if (advance.month_changed) {

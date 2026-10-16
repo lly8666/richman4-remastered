@@ -769,6 +769,63 @@ void mod_wide_company_dividend_settlement() {
                 rejection.world().players[0].state.bank_balance == INT64_MAX - 500,
             "dividend overflow must reject before clearing enterprise account or crediting any player");
 }
+void mod_ordered_original_result_movies() {
+    // The native presentation queue interleaves effects with events at
+    // EffectEvent::after_events. Verify original movie -> result ordering.
+    auto bankrupt_world = world();
+    property_nodes(bankrupt_world);
+    bankrupt_world.lands[1].economy.owner_code = 2;
+    bankrupt_world.players[0].state.cash = 40;
+    bankrupt_world.players[0].state.bank_balance = 20;
+    rich4::GameSession bankrupt_game(std::move(bankrupt_world), 0);
+    first_landing(bankrupt_game);
+    const auto doomed_events = bankrupt_game.drain_events();
+    const auto doomed_effects = bankrupt_game.drain_effects();
+    const auto bankrupt_notice = std::find_if(doomed_events.begin(), doomed_events.end(),
+        [](const auto &e) { return e.kind == rich4::GameEventKind::player_bankrupt; });
+    const auto bankrupt_movie = std::find_if(doomed_effects.begin(), doomed_effects.end(),
+        [](const auto &e) { return e.kind == rich4::EffectKind::bankrupt; });
+    require(bankrupt_notice != doomed_events.end() && bankrupt_movie != doomed_effects.end() &&
+                bankrupt_movie->after_events <= std::size_t(bankrupt_notice - doomed_events.begin()),
+            "bankruptcy Data[555] movie must play before bankruptcy result caption");
+
+    auto timed = world();
+    timed.header.date = {31, 10, 2026};
+    timed.lottery_tickets[6] = 2;
+    rich4::GameSession month(std::move(timed), 3);
+    bool checked_lottery = false, checked_month = false;
+    for (unsigned step = 0; month.completed_days() < 1 && step < 200000; ++step) {
+        if (month.phase() == rich4::GamePhase::human_ready)
+            require(month.roll_dice(), "movie ordering autoplay roll");
+        if (month.pending_decision())
+            require(month.respond(month.pending_decision()->options.empty() ? 0 :
+                                  month.pending_decision()->options.size() - 1), "movie ordering reply");
+        month.tick(50);
+        const auto effects = month.drain_effects();
+        const auto events = month.drain_events();
+        for (const auto &effect : effects) {
+            if (effect.kind == rich4::EffectKind::lottery_draw) {
+                const auto first_result = std::find_if(events.begin(), events.end(), [](const auto &e) {
+                    return e.message.starts_with("彩票开奖：");
+                });
+                require(first_result != events.end() &&
+                            effect.after_events <= std::size_t(first_result - events.begin()),
+                        "lottery draw must precede winning-number announcement");
+                checked_lottery = true;
+            }
+            if (effect.kind == rich4::EffectKind::month_report) {
+                const auto final_notice = std::find_if(events.begin(), events.end(), [](const auto &e) {
+                    return e.message == "月结完成，无贷款玩家获得存款利息";
+                });
+                require(final_notice != events.end() &&
+                            effect.after_events <= std::size_t(final_notice - events.begin()),
+                        "month report animation must precede completed-month result notice");
+                checked_month = true;
+            }
+        }
+    }
+    require(checked_lottery && checked_month, "October 31 must test both monthly visual sequences");
+}
 void monthly_settlement() {
     auto value = world();
     value.header.date = {14, 10, 2026};
@@ -2052,6 +2109,7 @@ int main() {
         bank_and_failure();
         thirty_days_and_timing();
         mod_wide_company_dividend_settlement();
+        mod_ordered_original_result_movies();
         monthly_settlement();
         same_save_interactive_reload_rng();
         save_reload_and_deferred_spawn();
