@@ -104,6 +104,34 @@ void listing_and_cleanup() {
     require(!buy(w, 1, 0, 1).applied && prune(w) == 1,
             "Changing building level invalidates its old price offer");
 }
+void mod_wide_stock_offer() {
+    auto w = fixture();
+    w.players[0].state.bank_balance = 3'000'000'000LL;
+    w.players[1].state.cash = 900'000'000LL;
+    w.players[1].stocks[2] = {500'000'000, std::bit_cast<std::uint32_t>(20.25F)};
+    w.players[0].stocks[2] = {1'000'000, std::bit_cast<std::uint32_t>(20.25F)};
+    require(post(w, 0, {OfferKind::stock, 2, 10000, 1000}).applied,
+            "MOD high-balance peer stock offer accepted");
+    require(buy(w, 1, 0, 0).applied &&
+                w.players[0].state.bank_balance == 3'000'010'000LL &&
+                w.players[1].state.cash == 899'990'000LL &&
+                w.players[1].stocks[2].amount == 500'001'000LL &&
+                std::bit_cast<float>(w.players[1].stocks[2].raw_cost_basis) > 0,
+            "MOD peer stock sale preserves int64 bank and high-quantity basis");
+    w = fixture();
+    w.players[0].state.bank_balance = INT64_MAX - 5;
+    require(post(w, 0, {OfferKind::stock, 2, 10000, 1000}).applied,
+            "overflow regression offer posted");
+    const auto offer = w.offers[0][0];
+    const auto buyer_cash = w.players[1].state.cash;
+    const auto stock_before = w.players[0].stocks[2].amount;
+    require(!buy(w, 1, 0, 0).applied &&
+                w.players[0].state.bank_balance == INT64_MAX - 5 &&
+                w.players[1].state.cash == buyer_cash &&
+                w.players[0].stocks[2].amount == stock_before &&
+                w.offers[0][0] == offer,
+            "seller bank overflow rejects peer stock trade atomically");
+}
 void transfer_effects() {
     auto w = fixture();
     require(post(w, 0, {OfferKind::card, 3, 1234, 0}).applied && buy(w, 1, 0, 0).applied,
@@ -365,6 +393,7 @@ int main(int argc, char **argv) {
         }
         listing_and_cleanup();
         transfer_effects();
+        mod_wide_stock_offer();
         ai_rules();
         std::cout << "trading tests passed\n";
     } catch (const std::exception &e) {

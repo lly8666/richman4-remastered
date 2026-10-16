@@ -231,7 +231,12 @@ Result buy(World &w, std::size_t buyer, std::size_t seller, std::size_t index) {
     if (recipient.state.cash < offer.price)
         return failure("Not enough cash");
     const auto buyer_cash = mod::money_sub(recipient.state.cash, offer.price);
-    const auto seller_bank = mod::money_add(source.state.bank_balance, offer.price);
+    std::int64_t seller_bank = 0;
+    try {
+        seller_bank = mod::money_add(source.state.bank_balance, offer.price);
+    } catch (const std::overflow_error &) {
+        return failure("MOD seller bank balance would overflow");
+    }
     bool owner_changed = false;
     switch (offer.kind) {
     case OfferKind::stock: {
