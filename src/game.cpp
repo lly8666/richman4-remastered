@@ -3249,14 +3249,14 @@ struct GameSession::Impl {
             auto &state = world.players.at(static_cast<std::size_t>(owner)).state;
             if (!state.special_finance)
                 return;
-            std::int32_t bank_total = 0;
+            std::int64_t bank_total = 0;
             for (std::size_t i = 0; i < world.players.size(); ++i)
                 if (static_cast<int>(i) != owner && world.players[i].state.controller_flags)
                     bank_total = add32(bank_total, world.players[i].state.bank_balance);
             if (bank_total < state.special_finance) {
                 const auto amount = subtract32(state.special_finance, bank_total);
                 collect_bank_debt(static_cast<std::size_t>(owner), amount);
-                state.special_finance = std::max(0, subtract32(state.special_finance, amount));
+                state.special_finance = std::max<std::int64_t>(0, subtract32(state.special_finance, amount));
             }
         } else
             for (std::size_t i = 0; i < world.players.size(); ++i) {
@@ -3328,8 +3328,8 @@ struct GameSession::Impl {
                static_cast<std::size_t>(code - 6000) < world.commercials.size() &&
                world.commercials[code - 6000].owner_code == actor() + 1;
     }
-    std::int32_t financing_limit() const {
-        std::int32_t total = 0;
+    std::int64_t financing_limit() const {
+        std::int64_t total = 0;
         for (std::size_t i = 0; i < world.players.size(); ++i)
             if (i != actor())
                 total = add32(total, world.players[i].state.bank_balance);
@@ -3541,7 +3541,7 @@ struct GameSession::Impl {
             if (!id || id >= world.commercials.size())
                 continue;
             auto &company = world.commercials[id];
-            std::int32_t shares = 0;
+            std::int64_t shares = 0;
             for (std::size_t slot = 0; slot < world.players.size(); ++slot)
                 if (world.players[slot].state.controller_flags)
                     shares = add32(shares, world.players[slot].stocks[stock].amount);
