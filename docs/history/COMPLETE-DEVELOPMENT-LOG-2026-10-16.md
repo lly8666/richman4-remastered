@@ -1,5 +1,5 @@
 # 《大富翁4》原版重构与 MOD：开发全历史和可核查索引
-更新：2026-10-16。本记录收录 **GitHub 当前 `mod` 分支可达的全部 325 条提交记录**，由远端提交历史自动汇总；它不是声称能够复原没有落入 Git 的私人聊天、临时调试或丢失的构建产物。
+更新：2026-10-16。本记录收录 **GitHub 当前 `mod` 分支可达的全部 330 条提交记录**，由远端提交历史自动汇总；它不是声称能够复原没有落入 Git 的私人聊天、临时调试或丢失的构建产物。
 
 ## 一、项目与分支
 - 源代码：[richman4-remastered](https://github.com/lly8666/richman4-remastered)；标准重构 `main` 用于尽力贴合 Windows 大富翁4 v3.11。
@@ -35,12 +35,17 @@
 - 原始游戏点券 16 bit，MOD 已让大笔道具销售点券饱和于 65535；是否继续拓宽属于另一个独立兼容性决策。
 - 此文档的附录提供所有可核查提交。分支继续演进时可按同一 GitHub API 列表重新生成附录，不要错误称其自动实时更新。
 
-## 四、提交历史附录（截至 f1855b50ca60，按新到旧）
+## 四、提交历史附录（截至 bbb120f7c3a0，按新到旧）
 
 以下包含本轮资金/股市增容、编译失败及随后的修正；每条均链接到不可变的完整 Git commit。
 
 | 日期 (UTC) | 完整提交链接（短 SHA） | 变更标题 |
 |---|---|---|
+| 2026-10-16 | [`bbb120f7c3a0`](https://github.com/lly8666/richman4-remastered/commit/bbb120f7c3a08fd0e04f2b9842d42aaf4c70a253) | MOD: evaluate AI shareholder control and four-player share totals without 32-bit wrapping |
+| 2026-10-16 | [`960e6ba8c045`](https://github.com/lly8666/richman4-remastered/commit/960e6ba8c045092fe19d66a86dff59806534e64f) | MOD test: interest on 2bn deposits must produce positive 2.2bn without int32 FISTP overflow |
+| 2026-10-16 | [`ffe20e2cf6c7`](https://github.com/lly8666/richman4-remastered/commit/ffe20e2cf6c7c5f522da2ebac80eba7f8c6e35bc) | MOD: protect bank month-end interest at 2bn boundary where 1.1x exceeds signed32 |
+| 2026-10-16 | [`71ad1d48445b`](https://github.com/lly8666/richman4-remastered/commit/71ad1d48445b6d0f880f5aa13d9540ff16e33d60) | MOD Android: clamp 64-bit bank ATM liquidity to 32-bit number-pad range explicitly |
+| 2026-10-16 | [`d120f6cb6fec`](https://github.com/lly8666/richman4-remastered/commit/d120f6cb6fecd048a5e37d07812ab7c7e87ceb81) | MOD docs: refresh complete 325-commit development history through latest 64-bit fixes |
 | 2026-10-16 | [`f1855b50ca60`](https://github.com/lly8666/richman4-remastered/commit/f1855b50ca601dd441f47b0d9717fae33a226396) | MOD test: trillion-dollar month-end deposit, 10% interest and champion preserve full int64 |
 | 2026-10-16 | [`07ac4d79b557`](https://github.com/lly8666/richman4-remastered/commit/07ac4d79b557c3cbe2c253d63d5cd0a4f0bbe472) | MOD: prevent month-end interest and champion ranking from truncating 64-bit deposits/assets |
 | 2026-10-16 | [`c80cbfb6dafa`](https://github.com/lly8666/richman4-remastered/commit/c80cbfb6dafa57c5556d857c4f9e87b793911549) | MOD: preserve full 64-bit balances, total wealth and lottery pool in month-end UI |
