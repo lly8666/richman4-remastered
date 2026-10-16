@@ -304,7 +304,7 @@ void oracle(const std::filesystem::path &directory) {
                         callbacks.pay = [&](auto payer, auto recipient, auto amount, auto flags) {
                             payments.insert(payments.end(), {std::bit_cast<std::uint32_t>(payer),
                                                              std::bit_cast<std::uint32_t>(recipient),
-                                                             std::bit_cast<std::uint32_t>(amount), flags});
+                                                             static_cast<std::uint32_t>(amount), flags});
                         };
                         callbacks.remove_object = [&](auto id) {
                             boundaries.insert(boundaries.end(), {1, id, 0});
