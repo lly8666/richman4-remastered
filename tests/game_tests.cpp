@@ -142,7 +142,12 @@ void mod_card_stacks_save_roundtrip() {
     value.card_supply[2] = 240;
     for (int i = 0; i < 997; ++i)
         rich4::receive_card(cards, value.card_supply, rich4::services::card_prices, 3);
-    const auto dat = value.export_save();
+    auto dat = value.export_save();
+    rich4::mod::mark_mod_save(dat);
+    require(rich4::mod::requires_mod_sidecar(dat), "MOD DAT marks required sidecar");
+    const auto marked_size = dat.size();
+    rich4::mod::mark_mod_save(dat);
+    require(dat.size() == marked_size, "saving an existing MOD DAT cannot append duplicate markers");
     const auto sidecar = rich4::mod::encode_tool_extension(value, dat);
     require(sidecar.starts_with("RICH4-MOD-ECON-3 "), "stacked card count requires ECON-3");
     auto restored = rich4::World::from_save(rich4::SaveFile::decode(dat));

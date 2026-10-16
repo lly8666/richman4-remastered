@@ -19,6 +19,19 @@
 
 namespace rich4::mod {
 
+// An append-only DAT footer keeps legacy field offsets intact and lets the
+// Android loader reject an accidentally copied DAT without its MOD sidecar.
+inline constexpr std::string_view required_sidecar_footer = "\nRICH4-MOD-COMPANION-REQUIRED-3\n";
+inline bool requires_mod_sidecar(std::span<const std::uint8_t> bytes) noexcept {
+    return bytes.size() >= required_sidecar_footer.size() &&
+           std::equal(required_sidecar_footer.begin(), required_sidecar_footer.end(),
+                      bytes.end() - static_cast<std::ptrdiff_t>(required_sidecar_footer.size()));
+}
+inline void mark_mod_save(std::vector<std::uint8_t> &bytes) {
+    if (!requires_mod_sidecar(bytes))
+        bytes.insert(bytes.end(), required_sidecar_footer.begin(), required_sidecar_footer.end());
+}
+
 inline std::uint64_t dat_hash(std::span<const std::uint8_t> bytes) noexcept {
     std::uint64_t hash = UINT64_C(14695981039346656037);
     for (const auto byte : bytes) {

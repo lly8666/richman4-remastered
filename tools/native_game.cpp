@@ -1081,7 +1081,7 @@ class Application {
                         return std::any_of(player.state.tool_amounts.begin(), player.state.tool_amounts.end(),
                                            [](auto count) { return count > 9; });
                     });
-                if (missing_wide_ledger)
+                if (missing_wide_ledger || mod::requires_mod_sidecar(bytes))
                     throw SaveError("MOD DAT requires its matching .DAT.mod financial companion");
             }
             install_session(std::move(loaded), seed);
@@ -1110,7 +1110,8 @@ class Application {
         toast_until_ = SDL_GetTicks() + 2200;
     }
     void write_save(const fs::path &path) {
-        const auto dat = session_->export_save().encode();
+        auto dat = session_->export_save().encode();
+        mod::mark_mod_save(dat);
         const auto extension = mod::encode_tool_extension(session_->world(), dat);
         ui::write_file(path, dat);
         ui::write_file(path.string() + ".mod", {extension.begin(), extension.end()});

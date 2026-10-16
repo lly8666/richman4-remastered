@@ -29,6 +29,10 @@ template <class Supply> std::uint8_t weighted(const Supply &supply, Random &rand
 }
 void buy_card_unchecked(World &world, Shop &shop, std::size_t slot, std::uint8_t id) {
     auto &player = world.players.at(slot).state;
+    // MOD card shelves restock independently of the old byte-sized pool.
+    // A zero shared supply must not wrap to 255 after a paid purchase.
+    if (player.cards.stacked && !world.card_supply[id - 1])
+        world.card_supply[id - 1] = 1;
     receive_card(player.cards, world.card_supply, card_prices, id);
     player.points = static_cast<std::uint16_t>(player.points - card_prices.at(id - 1));
     shop.revenue = add(shop.revenue, card_prices.at(id - 1) * 10);
@@ -76,7 +80,9 @@ void computer_shop(World &world, Shop &shop, std::size_t slot) {
     std::vector<std::uint8_t> candidates;
     for (std::size_t index = 0; index < card_prices.size(); ++index)
         if (card_prices[index] <= card_budget && !dislikes(card_preferences[index]))
-            candidates.insert(candidates.end(), world.card_supply[index],
+            candidates.insert(candidates.end(),
+                              player.cards.stacked ? std::max<unsigned>(world.card_supply[index], 1U)
+                                                   : unsigned(world.card_supply[index]),
                               static_cast<std::uint8_t>(index + 1));
     std::stable_sort(candidates.begin(), candidates.end(),
                      [](auto a, auto b) { return card_prices[a - 1] > card_prices[b - 1]; });
@@ -141,6 +147,9 @@ Shop open_shop(World &world, Random &random, std::size_t slot, std::uint16_t pro
         return shop;
     }
     auto supply = world.card_supply;
+    if (player.cards.stacked)
+        for (auto &available : supply)
+            available = std::max<std::uint8_t>(available, 1);
     const unsigned count = static_cast<unsigned>(random.next()) % 10 + 6;
     for (unsigned i = 0; i < count; ++i) {
         const auto id = weighted(supply, random);
@@ -159,7 +168,8 @@ bool buy_card(World &world, Shop &shop, std::size_t slot, std::uint8_t id) {
     auto &player = world.players.at(slot).state;
     const auto item = std::find(shop.cards.begin(), shop.cards.end(), id);
     if (shop.closed || !id || id > 30 || item == shop.cards.end() || player.points < card_prices[id - 1] ||
-        !card_can_receive(player.cards, id) || !world.card_supply[id - 1])
+        !card_can_receive(player.cards, id) ||
+        (!player.cards.stacked && !world.card_supply[id - 1]))
         return false;
     buy_card_unchecked(world, shop, slot, id);
     shop.cards.erase(item);

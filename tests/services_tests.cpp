@@ -126,6 +126,32 @@ void transactions() {
                 w.players[0].state.points == points_before,
             "1000th tool rejected without charging points");
 }
+void mod_restocked_cards() {
+    auto w = sample();
+    auto &player = w.players[0].state;
+    player.cards = {};
+    enable_card_stacks(player.cards);
+    player.points = 50000;
+    w.card_supply.fill(0);
+    Random random(13);
+    auto shelf = services::open_shop(w, random, 0);
+    require(!shelf.cards.empty(), "MOD card shop must restock an exhausted world supply");
+    const auto id = shelf.cards.front();
+    require(services::buy_card(w, shelf, 0, id) && card_quantity(player.cards, id) == 1 &&
+                w.card_supply[id - 1] == 0, "MOD restock sale must not underflow shared supply");
+    player.cards.stacked_amounts[id - 1] = 998;
+    shelf = services::open_shop(w, random, 0);
+    shelf.cards.push_back(id);
+    require(services::buy_card(w, shelf, 0, id) && card_quantity(player.cards, id) == 999 &&
+                w.card_supply[id - 1] == 0,
+            "MOD card shop sale reaches 999 without consuming another slot");
+    shelf = services::open_shop(w, random, 0);
+    shelf.cards.push_back(id);
+    const auto points_before = player.points;
+    require(!services::buy_card(w, shelf, 0, id) &&
+                card_quantity(player.cards, id) == 999 && player.points == points_before,
+            "MOD card shop rejects 1000th card without charging points");
+}
 void computer_policy() {
     auto w = sample();
     auto &p = w.players[1].state;
@@ -238,6 +264,7 @@ int main() {
     try {
         weighted_and_shelf();
         transactions();
+        mod_restocked_cards();
         computer_policy();
         magic_selection_and_effects();
         mod_magic_64bit_money();
