@@ -120,6 +120,7 @@ void mod_wide_stock_offer() {
             "MOD peer stock sale preserves int64 bank and high-quantity basis");
     w = fixture();
     w.players[0].state.bank_balance = INT64_MAX - 5;
+    w.players[0].stocks[2].amount = 2000; // Valid 1000-share listing before testing recipient overflow.
     require(post(w, 0, {OfferKind::stock, 2, 10000, 1000}).applied,
             "overflow regression offer posted");
     const auto offer = w.offers[0][0];
