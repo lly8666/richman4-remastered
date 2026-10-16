@@ -248,66 +248,42 @@ std::size_t update_stocks(World &world, unsigned selection) {
     return updated;
 }
 
-std::int32_t player_wealth(const World &world, std::size_t player) {
-    if (player >= world.players.size()) {
-        throw std::out_of_range("wealth player index out of range");
-    }
+std::int64_t player_wealth(const World &world, std::size_t player) {
+    if (player >= world.players.size())
+        throw std::out_of_range("MOD wealth player out of range");
     const auto &account = world.players[player];
-    const auto initial = std::int64_t(account.state.cash) + account.state.bank_balance - account.state.loan;
-    auto total = static_cast<std::int32_t>(std::clamp(initial, std::int64_t(INT32_MIN), std::int64_t(INT32_MAX)));
+    // A stock worth 999999 x 100m = ~100 trillion. Never clip the result to
+    // INT32_MAX; all intermediate additions remain checked signed 64-bit.
+    auto total = safe_add(safe_add(account.state.cash, account.state.bank_balance), -account.state.loan);
     for (std::size_t stock = 0; stock < world.stocks.size(); ++stock) {
         const auto quote = std::bit_cast<float>(world.stocks[stock].float_bits[2]);
-        const auto amount = account.stocks[stock].amount;
-        if (!std::isfinite(quote) || quote < 0 || quote > mod::max_stock_price || amount < 0 || (quote != 0 && quote < 1)) {
-            throw std::invalid_argument("wealth requires valid market quotes and nonnegative holdings");
-        }
-        // In the original FILD total / FSTP float loses low integer bits before
-        // each stock addition, even for a zero holding. Preserve that sequence.
-        const auto rounded_total = static_cast<std::int64_t>(Extended::from(total).single());
-        const auto raw = std::bit_cast<std::uint32_t>(quote);
-        const auto exponent = (raw >> 23) & 255U;
-        const auto significand = (raw & 0x7fffffU) | (exponent == 0 ? 0 : 0x800000U);
-        const auto product = std::uint64_t(significand) * static_cast<std::uint32_t>(amount);
-        // Market quotes [1,999999] have 4..23 fraction bits. The integer product
-        // is exact; split it so cancellation with negative wealth is also exact.
-        const unsigned fraction_bits = quote == 0 ? 23U : 150U - exponent;
-        const auto integer = product >> fraction_bits;
-        const bool fraction = (product & ((std::uint64_t{1} << fraction_bits) - 1)) != 0;
-        auto sum = rounded_total + static_cast<std::int64_t>(integer);
-        if (sum < 0 && fraction) {
-            ++sum; // Truncate the negative fractional sum toward zero.
-        }
-        total = static_cast<std::int32_t>(std::clamp(sum, std::int64_t(INT32_MIN), std::int64_t(INT32_MAX)));
+        total = safe_add(total, sale_proceeds(quote, account.stocks[stock].amount));
     }
     const auto owner = player + 1;
     for (std::size_t id = 1; id < world.lands.size(); ++id) {
         const auto &land = world.lands[id];
         if (land.economy.owner_code == owner) {
-            const auto levels = land.economy.chain_store != 0 ? 1 : land.economy.level;
-            total = static_cast<std::int32_t>(std::clamp(
-                std::int64_t(total) + land.land_price + land.price_per_level * levels,
-                std::int64_t(INT32_MIN), std::int64_t(INT32_MAX)));
+            const auto levels = land.economy.chain_store ? 1 : land.economy.level;
+            total = safe_add(total, std::int64_t(land.land_price) + land.price_per_level * levels);
         }
     }
     for (std::size_t id = 1; id < world.facilities.size(); ++id) {
         const auto &facility = world.facilities[id];
-        if (facility.owner_code == owner) {
-            total = static_cast<std::int32_t>(std::clamp(
-                std::int64_t(total) + facility.land_price + facility.price_per_level() * facility.level,
-                std::int64_t(INT32_MIN), std::int64_t(INT32_MAX)));
-        }
+        if (facility.owner_code == owner)
+            total = safe_add(total, std::int64_t(facility.land_price) +
+                                   facility.price_per_level() * facility.level);
     }
     return total;
 }
 
 void refresh_trade_limits(World &world, Random &random) {
     for (auto &stock : world.stocks) {
-        if (stock.shares_available <= 1000) {
+        if (stock.shares_available <= 1000U * mod::share_supply_multiplier) {
             stock.flags_10 = stock.shares_available;
         } else {
             const auto fraction = Extended::from(random.next() % 2000 + 1000) / Extended::from(10000);
             stock.flags_10 =
-                static_cast<std::uint16_t>((fraction * Extended::from(stock.shares_available)).integer());
+                static_cast<std::uint32_t>((fraction * Extended::from(stock.shares_available)).integer());
         }
     }
 }
