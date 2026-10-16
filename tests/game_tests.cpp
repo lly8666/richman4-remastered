@@ -1208,7 +1208,9 @@ void mod_loan_stock_session_roundtrip() {
     value.stocks[0].shares_available = 100'000'000;
     value.stocks[0].flags_10 = 100'000'000;
     value.stocks[0].float_bits[2] = std::bit_cast<std::uint32_t>(999999.0F);
-    rich4::GameSession bank(std::move(value), 7);
+    // Seed zero is the established fixture for a final-stop bank visit.
+    // Other rolls may PASS THROUGH the bank and correctly exclude borrowing.
+    rich4::GameSession bank(std::move(value), 0);
     first_landing(bank);
     require(bank.pending_decision() && bank.pending_decision()->kind == rich4::DecisionKind::bank,
             "MOD loan integration must reach bank decision");
