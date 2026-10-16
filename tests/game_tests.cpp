@@ -535,6 +535,34 @@ void alliance_rent() {
                 free.world().players[0].status.hostility[2] == 20,
             "free card must not erase original pre-defense hostility");
 }
+void mod_wide_funds_toll_frame_trigger() {
+    auto value = world();
+    property_nodes(value);
+    value.lands[1].economy.owner_code = 2;
+    value.players[0].state.cash = 15'100'000'000LL;
+    value.players[0].state.bank_balance = 8'000'000'000LL;
+    value.players[0].state.cards = {19};
+    rich4::GameSession cheap(value, 0);
+    first_landing(cheap);
+    require(!cheap.pending_decision() &&
+                cheap.world().players[0].state.cash == 15'099'999'850LL &&
+                cheap.world().players[0].state.cards[0] == 19,
+            "large balances cannot trigger framing on a small, affordable toll");
+    value.lands[1].economy.toll_by_level.fill(3000);
+    rich4::GameSession expensive(value, 0);
+    first_landing(expensive);
+    require(expensive.pending_decision() &&
+                expensive.pending_decision()->kind == rich4::DecisionKind::card_target,
+            "large toll should still ask whether to use the framing card");
+    auto pending = expensive.drain_events();
+    require(std::any_of(pending.begin(), pending.end(), [](const auto &event) {
+                return event.message == "MOD_TOLL_EVENT_PREVIEW";
+            }) && expensive.world().players[0].state.cash == 15'100'000'000LL,
+            "show toll cue ahead of framing target without collecting money early");
+    require(expensive.respond(expensive.pending_decision()->options.size() - 1) &&
+                expensive.world().players[0].state.cash < 15'100'000'000LL,
+            "declining framing completes the toll after the prompt");
+}
 void mod_frame_card_event_preview_order() {
     bool found = false;
     for (std::uint32_t seed = 0; seed < 64 && !found; ++seed) {
@@ -2017,6 +2045,7 @@ int main() {
         land_god_own_upgrade();
         property_and_rent();
         alliance_rent();
+        mod_wide_funds_toll_frame_trigger();
         mod_frame_card_event_preview_order();
         mod_compact_money_format();
         mod_64bit_bank_deposit_and_withdraw();
