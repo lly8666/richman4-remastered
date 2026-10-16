@@ -1217,8 +1217,12 @@ void mod_loan_stock_session_roundtrip() {
     const auto it = std::find_if(options.begin(), options.end(), [](const auto &entry) {
         return entry.value == 3;
     });
-    require(it != options.end() && bank.respond(std::size_t(it - options.begin()), 800'000'000),
-            "MOD 800m real-game loan rejected");
+    require(it != options.end(), "MOD loan option missing at bank");
+    require(rich4::stocks::player_wealth(bank.world(), 0) >= 800'000'000 &&
+                bank.world().players[0].status.days_bank_no_loans == 0,
+            "MOD loan credit eligibility changed during landing");
+    require(bank.respond(std::size_t(it - options.begin()), 800'000'000),
+            "MOD 800m loan failed despite available collateral");
     auto invested = bank.world();
     require(invested.players[0].state.loan == 800'000'000 &&
                 invested.players[0].state.bank_balance == 1'700'000'000 &&
