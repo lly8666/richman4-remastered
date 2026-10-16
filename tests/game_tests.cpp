@@ -1197,6 +1197,36 @@ void god_card_arrival_presentation_order() {
     require(gift.world().players[0].state.cards[0] == reward->value,
             "displayed reward card must be the card actually added to the player's bag");
 }
+void mod_enterprise_ledger_save_regression() {
+    auto w = world();
+    w.commercials[1].funds = 15'100'000'000LL;
+    w.commercials[1].funds_change = -7'500'000'000LL;
+    auto dat = w.export_save();
+    rich4::mod::mark_mod_save(dat);
+    const auto extension = rich4::mod::encode_tool_extension(w, dat);
+    require(extension.starts_with("RICH4-MOD-ECON-4 "), "wide enterprise accounts require ECON-4");
+    auto restored = rich4::World::from_save(rich4::SaveFile::decode(dat));
+    require(restored.commercials[1].funds == INT32_MAX &&
+                restored.commercials[1].funds_change == INT32_MIN,
+            "original DAT contains saturated preview rather than wrapped company balances");
+    rich4::mod::apply_tool_extension(restored, dat, extension);
+    require(restored.commercials[1].funds == 15'100'000'000LL &&
+                restored.commercials[1].funds_change == -7'500'000'000LL,
+            "ECON-4 restores exact positive/negative enterprise balances");
+    auto stale = extension;
+    const auto token = stale.find("15100000000");
+    require(token != std::string::npos, "test sidecar must contain company funds");
+    stale.replace(token, 11, "0");
+    auto candidate = rich4::World::from_save(rich4::SaveFile::decode(dat));
+    bool rejected = false;
+    try {
+        rich4::mod::apply_tool_extension(candidate, dat, stale);
+    } catch (const rich4::SaveError &) {
+        rejected = true;
+    }
+    require(rejected && candidate.commercials[1].funds == INT32_MAX,
+            "tampered company ledger rejected before applying other sidecar fields");
+}
 void mod_rally_loan_and_bank_balance_regression() {
     auto value = world();
     value.players[0].state.cash = 10'000'000;
@@ -1834,6 +1864,7 @@ int main() {
         god_spinner_presentation_order();
         native_actions_and_money_spinner();
         god_card_arrival_presentation_order();
+        mod_enterprise_ledger_save_regression();
         mod_rally_loan_and_bank_balance_regression();
         mod_loan_stock_session_roundtrip();
         loan_and_free_toll();

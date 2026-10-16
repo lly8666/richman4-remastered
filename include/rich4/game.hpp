@@ -245,8 +245,8 @@ enum class EffectKind : std::uint8_t {
 // drained. Arrays are indexed by player slot; `active` masks the players the original lists.
 struct DividendRow {
     std::uint8_t stock = 0;          // stock index 0..11 (company name)
-    std::int32_t earnings = 0;       // 本月盈餘: the company's funds before the payout
-    std::array<std::int32_t, 4> payout{}; // trunc(earnings × shares / Σ shares) per slot
+    std::int64_t earnings = 0;       // MOD signed64 company funds before payout
+    std::array<std::int64_t, 4> payout{}; // MOD signed64 shareholder settlements
     bool operator==(const DividendRow &) const = default;
 };
 struct MonthlyFigures {
