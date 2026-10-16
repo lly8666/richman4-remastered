@@ -18,41 +18,33 @@ namespace {
 
 using numeric::Extended;
 
-std::int32_t add_wrap(std::int32_t first, std::int32_t second) {
-    return std::bit_cast<std::int32_t>(std::bit_cast<std::uint32_t>(first) +
-                                       std::bit_cast<std::uint32_t>(second));
+// MOD accounting: all money arithmetic is signed 64-bit and checked before
+// committing a trade. Never reproduce the original 32-bit wrap for large trades.
+std::int64_t safe_add(std::int64_t a, std::int64_t b) {
+    const auto result = __int128(a) + b;
+    if (result > INT64_MAX || result < INT64_MIN)
+        throw std::overflow_error("MOD finance balance exceeds signed 64-bit range");
+    return static_cast<std::int64_t>(result);
 }
 
-std::int32_t subtract_wrap(std::int32_t first, std::int32_t second) {
-    return std::bit_cast<std::int32_t>(std::bit_cast<std::uint32_t>(first) -
-                                       std::bit_cast<std::uint32_t>(second));
-}
-
-// Exact positive binary32 price times signed32 nonnegative share count, then
-// x87 FISTP's truncation to int32. Integer arithmetic avoids host FP precision
-// differences. An overflowing conversion returns x87's integer-indefinite.
-std::int32_t sale_proceeds(float quote, std::int32_t amount) {
-    if (!std::isfinite(quote) || quote < 0 || amount < 0) {
-        throw std::invalid_argument("stock sale requires a finite nonnegative quote and amount");
-    }
+// Exact positive IEEE754 binary32 quote times an integral share count,
+// truncated towards zero (x87 FISTP). MAX: 1e9 shares * 999999 < 1e15.
+std::int64_t sale_proceeds(float quote, std::int64_t amount) {
+    if (!std::isfinite(quote) || quote < 0 || quote > mod::max_stock_price ||
+        amount < 0 || amount > mod::max_holding_shares)
+        throw std::invalid_argument("MOD stock quote or quantity outside supported domain");
+    if (!quote || !amount)
+        return 0;
     const auto raw = std::bit_cast<std::uint32_t>(quote);
     const auto exponent = (raw >> 23) & 255U;
-    const std::uint64_t significand = (raw & 0x7fffffU) | (exponent == 0 ? 0 : 0x800000U);
-    const auto product = significand * static_cast<std::uint32_t>(amount);
+    const auto significand = std::uint64_t((raw & 0x7fffffU) | (exponent == 0 ? 0U : 0x800000U));
+    const auto product = significand * std::uint64_t(amount);
     const int shift = exponent == 0 ? -149 : int(exponent) - 150;
-    std::uint64_t integer;
-    if (product == 0) {
-        return 0;
-    }
-    if (shift >= 0) {
-        if (shift >= 31 || product > (std::uint64_t(INT32_MAX) >> shift)) {
-            return INT32_MIN;
-        }
-        integer = product << shift;
-    } else {
-        integer = shift <= -64 ? 0 : product >> -shift;
-    }
-    return integer > INT32_MAX ? INT32_MIN : static_cast<std::int32_t>(integer);
+    const auto result = shift >= 0 ? __uint128_t(product) << shift
+                                    : shift < -64 ? __uint128_t(0) : __uint128_t(product) >> -shift;
+    if (result > INT64_MAX)
+        throw std::overflow_error("MOD stock transaction value exceeds 64-bit");
+    return static_cast<std::int64_t>(result);
 }
 
 Commercial *linked_commercial(World &world, std::size_t stock) {
@@ -160,46 +152,44 @@ PriceTrend trend(const World &world, std::size_t stock) {
 
 PurchaseResult buy_stock(World &world, std::size_t player, std::size_t stock, std::int32_t amount,
                          bool from_market) {
-    if (world.players.size() > 4 || player >= world.players.size() || stock >= world.stocks.size()) {
-        throw std::out_of_range("stock purchase player or stock index out of range");
-    }
+    if (world.players.size() > 4 || player >= world.players.size() || stock >= world.stocks.size())
+        throw std::out_of_range("MOD stock purchase player or index out of range");
     auto &account = world.players[player];
     auto &holding = account.stocks[stock];
     auto &company = world.stocks[stock];
     auto *commercial = linked_commercial(world, stock);
-    if (amount <= 0 || holding.amount < 0 || amount > INT32_MAX - holding.amount) {
-        throw std::invalid_argument("stock purchase requires a positive nonoverflowing quantity");
-    }
-    std::int32_t cost;
+    if (amount <= 0 || holding.amount < 0 ||
+        std::int64_t(amount) > mod::max_holding_shares - holding.amount)
+        throw std::invalid_argument("MOD stock purchase quantity exceeds holding cap");
+    std::int64_t cost;
     if (from_market) {
+        if (std::uint64_t(amount) > company.shares_available ||
+            std::uint64_t(amount) > company.flags_10)
+            throw std::invalid_argument("MOD stock purchase exceeds market availability");
         cost = sale_proceeds(std::bit_cast<float>(company.float_bits[2]), amount);
-        if (cost < 0 || cost > account.state.bank_balance || amount > company.shares_available ||
-            amount > company.flags_10) {
-            throw std::invalid_argument("stock purchase exceeds market shares or bank balance");
-        }
+        if (cost > account.state.bank_balance || account.state.bank_balance < 0)
+            throw std::invalid_argument("MOD stock purchase exceeds available bank cash");
     } else {
-        if (!commercial || commercial->valuation < 0 || amount > commercial->shares_remaining) {
-            throw std::invalid_argument("company purchase exceeds primary shares");
-        }
-        const auto value = std::int64_t(commercial->valuation / 10000) * amount;
-        if (value > account.state.cash || value > INT32_MAX) {
-            throw std::invalid_argument("company purchase exceeds cash balance");
-        }
-        cost = static_cast<std::int32_t>(value);
+        if (!commercial || commercial->valuation < 0 || amount > commercial->shares_remaining)
+            throw std::invalid_argument("MOD primary share purchase exceeds company availability");
+        const auto unit = commercial->valuation / 10000;
+        cost = std::int64_t(unit) * amount;
+        if (cost > account.state.cash || account.state.cash < 0)
+            throw std::invalid_argument("MOD primary share purchase exceeds cash");
     }
     const auto previous_cost = sale_proceeds(std::bit_cast<float>(holding.raw_cost_basis), holding.amount);
-    if (previous_cost < 0 || std::int64_t(previous_cost) + cost > INT32_MAX)
-        throw std::invalid_argument("MOD stock cost basis exceeds the 32-bit save money range");
-    const auto total_cost = previous_cost + cost;
+    const auto total_cost = safe_add(previous_cost, cost);
     const auto new_quantity = holding.amount + amount;
-    const auto basis = (Extended::from(total_cost) / Extended::from(new_quantity)).single();
+    const auto basis = (Extended::from(static_cast<double>(total_cost)) /
+                        Extended::from(static_cast<double>(new_quantity))).single();
+    // All validations and arithmetic are complete before mutating ANY balances.
     if (from_market) {
-        company.shares_available = static_cast<std::uint16_t>(company.shares_available - amount);
-        company.flags_10 = static_cast<std::uint16_t>(company.flags_10 - amount);
-        account.state.bank_balance = subtract_wrap(account.state.bank_balance, cost);
+        company.shares_available -= static_cast<std::uint32_t>(amount);
+        company.flags_10 -= static_cast<std::uint32_t>(amount);
+        account.state.bank_balance -= cost;
     } else {
         commercial->shares_remaining -= amount;
-        account.state.cash = subtract_wrap(account.state.cash, cost);
+        account.state.cash -= cost;
     }
     holding.amount = new_quantity;
     holding.raw_cost_basis = std::bit_cast<std::uint32_t>(basis);
@@ -208,37 +198,29 @@ PurchaseResult buy_stock(World &world, std::size_t player, std::size_t stock, st
 
 SaleResult sell_stock(World &world, std::size_t player, std::size_t stock, std::int32_t amount,
                       bool credit_bank) {
-    if (world.players.size() > 4 || player >= world.players.size() || stock >= world.stocks.size()) {
-        throw std::out_of_range("stock sale player or stock index out of range");
-    }
+    if (world.players.size() > 4 || player >= world.players.size() || stock >= world.stocks.size())
+        throw std::out_of_range("MOD stock sale player or index out of range");
     auto &holding = world.players[player].stocks[stock];
-    if (amount < 0 || amount > holding.amount) {
-        throw std::invalid_argument("stock sale amount exceeds available holdings");
-    }
     auto &company = world.stocks[stock];
+    if (amount < 0 || amount > holding.amount || holding.amount > mod::max_holding_shares)
+        throw std::invalid_argument("MOD stock sale exceeds owned holdings");
     const auto proceeds = sale_proceeds(std::bit_cast<float>(company.float_bits[2]), amount);
-    if (proceeds < 0 || (credit_bank
-            ? std::int64_t(world.players[player].state.bank_balance) + proceeds > INT32_MAX
-            : std::int64_t(world.public_fund) + proceeds > INT32_MAX))
-        throw std::invalid_argument("MOD stock sale exceeds the 32-bit balance capacity");
-    if (std::uint64_t(company.shares_available) + unsigned(amount) > UINT16_MAX ||
-        std::uint64_t(company.flags_10) + unsigned(amount) > UINT16_MAX)
-        throw std::invalid_argument("MOD stock sale exceeds the 16-bit supply capacity");
+    if (std::uint64_t(company.shares_available) + std::uint64_t(amount) > mod::max_market_shares ||
+        std::uint64_t(company.flags_10) + std::uint64_t(amount) > mod::max_market_shares)
+        throw std::invalid_argument("MOD stock return exceeds supported market supply");
+    const auto credited = safe_add(credit_bank ? world.players[player].state.bank_balance : world.public_fund,
+                                  proceeds);
     auto *commercial = linked_commercial(world, stock);
+    // Commit after ALL checks: no partial credit, no silent share count rollover.
     holding.amount -= amount;
-    if (holding.amount == 0) {
+    if (holding.amount == 0)
         holding.raw_cost_basis = 0;
-    }
-    // ADD word retains the original low 16 bits, independently of share count.
-    company.shares_available =
-        static_cast<std::uint16_t>(company.shares_available + static_cast<std::uint32_t>(amount));
-    company.flags_10 = static_cast<std::uint16_t>(company.flags_10 + static_cast<std::uint32_t>(amount));
-    if (credit_bank) {
-        auto &bank = world.players[player].state.bank_balance;
-        bank = add_wrap(bank, proceeds);
-    } else {
-        world.public_fund = add_wrap(world.public_fund, proceeds);
-    }
+    company.shares_available += static_cast<std::uint32_t>(amount);
+    company.flags_10 += static_cast<std::uint32_t>(amount);
+    if (credit_bank)
+        world.players[player].state.bank_balance = credited;
+    else
+        world.public_fund = credited;
     return {proceeds, update_commercial_owner(world, commercial, player, stock)};
 }
 
