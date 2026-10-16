@@ -9,6 +9,7 @@ inline constexpr std::int32_t new_starting_fund = 30000000;
 inline constexpr std::int32_t max_starting_fund = 900000000;
 inline constexpr std::uint32_t share_supply_multiplier = 10000;
 inline constexpr std::uint32_t max_market_shares = 100000000;
+inline constexpr std::int64_t max_holding_shares = 1000000000LL;
 // Largest total of 12 x 100m x 999999 is only 1.2e15; INT64 leaves margin.
 inline constexpr std::int32_t fixed_price_index = 1;
 
