@@ -3578,6 +3578,12 @@ struct GameSession::Impl {
     void pay_dividends() {
         auto figures = monthly_figures();
         std::array<std::int64_t, 4> totals{}; // MOD dividends from 12 companies can exceed INT32_MAX
+        // Keep virtual company balances while planning: one company may be
+        // listed on two stocks, but must pay its profits only once.
+        std::vector<std::int64_t> remaining;
+        remaining.reserve(world.commercials.size());
+        for (const auto &company : world.commercials)
+            remaining.push_back(company.funds);
         for (std::size_t stock = 0; stock < world.stocks.size() && stock < 12; ++stock) {
             const auto id = world.stocks[stock].flags_4;
             if (!id || id >= world.commercials.size())
@@ -3587,7 +3593,7 @@ struct GameSession::Impl {
             for (std::size_t slot = 0; slot < world.players.size(); ++slot)
                 if (world.players[slot].state.controller_flags)
                     shares = add32(shares, world.players[slot].stocks[stock].amount);
-            DividendRow row{static_cast<std::uint8_t>(stock), company.funds, {}};
+            DividendRow row{static_cast<std::uint8_t>(stock), remaining[id], {}};
             for (std::size_t slot = 0; slot < world.players.size() && slot < 4; ++slot) {
                 const auto held = world.players[slot].stocks[stock].amount;
                 if (!world.players[slot].state.controller_flags || !held)
@@ -3595,29 +3601,46 @@ struct GameSession::Impl {
                 // FDIVP stored as binary32, then FILD funds × that ratio, truncated (FISTP).
                 const auto ratio = (numeric::Extended::from(held) / numeric::Extended::from(shares)).single();
                 row.payout[slot] =
-                    (numeric::Extended::from(company.funds) * numeric::Extended::from(ratio)).integer64();
+                    (numeric::Extended::from(remaining[id]) * numeric::Extended::from(ratio)).integer64();
                 totals[slot] = add32(totals[slot], row.payout[slot]);
             }
             if (shares)
-                company.funds = 0;
+                remaining[id] = 0;
             figures.dividends.push_back(row);
         }
         if (figures.dividends.empty())
             return;
+        // Preflight ALL shareholder accounts before clearing ANY company
+        // profits or queuing a dividend effect; on INT64 overflow leave the
+        // full financial snapshot unchanged.
+        std::array<std::int64_t, 4> bank_after{}, cash_after{};
+        std::array<bool, 4> insolvent{};
+        for (std::size_t slot = 0; slot < world.players.size() && slot < 4; ++slot) {
+            const auto &state = world.players[slot].state;
+            bank_after[slot] = state.bank_balance;
+            cash_after[slot] = state.cash;
+            if (!state.controller_flags)
+                continue;
+            bank_after[slot] = mod::money_add(state.bank_balance, totals[slot]);
+            if (bank_after[slot] < 0) {
+                cash_after[slot] = mod::money_add(state.cash, bank_after[slot]);
+                bank_after[slot] = 0;
+                insolvent[slot] = cash_after[slot] < 0;
+                if (insolvent[slot])
+                    cash_after[slot] = 0;
+            }
+        }
+        for (std::size_t id = 0; id < remaining.size(); ++id)
+            world.commercials[id].funds = remaining[id];
         monthly_effect(EffectKind::dividend, figures); // the table shows before the payout settles
         for (std::size_t slot = 0; slot < world.players.size() && slot < 4; ++slot) {
             auto &state = world.players[slot].state;
             if (!state.controller_flags)
                 continue;
-            state.bank_balance = add32(state.bank_balance, totals[slot]);
-            if (state.bank_balance >= 0)
-                continue;
-            state.cash = add32(state.cash, state.bank_balance);
-            state.bank_balance = 0;
-            if (state.cash < 0) {
-                state.cash = 0;
+            state.bank_balance = bank_after[slot];
+            state.cash = cash_after[slot];
+            if (insolvent[slot])
                 bankrupt(slot);
-            }
         }
     }
     void close_month() {
