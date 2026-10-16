@@ -175,7 +175,7 @@ struct GameEvent {
     std::uint16_t property = 0;       // Original property code: 2000+land, 4000+facility.
     std::int32_t subject = -1, second_subject = -1, company = -1, value = 0;
     std::uint8_t players = 0; // Affected player slots (portrait rows).
-    std::array<std::int32_t, 4> player_amounts{};
+    std::array<std::int64_t, 4> player_amounts{}; // Wide MOD news/tax display values
     // Card id (1..30) when this event reports a card being used, for the card-art popup.
     std::optional<std::uint8_t> card = std::nullopt;
     // Card/tool speech bubble (presentation only, never draws randomness): `player` speaks
