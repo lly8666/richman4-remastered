@@ -35,7 +35,12 @@ void buy_card_unchecked(World &world, Shop &shop, std::size_t slot, std::uint8_t
 }
 void buy_tool_unchecked(World &world, Shop &shop, std::size_t slot, std::uint8_t id) {
     auto &player = world.players.at(slot).state;
-    (void)receive_tool(player.tool_amounts, world.tool_supply, id);
+    // MOD shops restock the first eight tools independently of the original
+    // byte-sized world supply. Never charge the player for a rejected grant.
+    if (id <= world.tool_supply.size() && !world.tool_supply[id - 1])
+        ++player.tool_amounts[id - 1];
+    else if (!receive_tool(player.tool_amounts, world.tool_supply, id))
+        throw std::logic_error("MOD shop tool grant failed after validation");
     player.points = static_cast<std::uint16_t>(player.points - tool_prices.at(id - 1));
     shop.revenue = add(shop.revenue, tool_prices.at(id - 1) * 10);
 }
@@ -85,7 +90,7 @@ void computer_shop(World &world, Shop &shop, std::size_t slot) {
     }
     for (const std::uint8_t id : {std::uint8_t(5), std::uint8_t(6)}) {
         if ((player.traffic_method & 3U) != id - 4U && !player.tool_amounts[id - 1] &&
-            tool_prices[id - 1] < tool_budget && world.tool_supply[id - 1]) {
+            tool_prices[id - 1] < tool_budget && player.tool_amounts[id - 1] < mod::max_tool_amount) {
             buy_tool_unchecked(world, shop, slot, id);
             tool_budget -= tool_prices[id - 1];
         }
@@ -94,7 +99,7 @@ void computer_shop(World &world, Shop &shop, std::size_t slot) {
                                                 1, 4, 3}; // Original 0x4755f0, converted to one-based IDs.
     for (const auto id : order) {
         if (player.tool_amounts[id - 1] < mod::max_tool_amount && !dislikes(tool_preferences[id - 1]) &&
-            tool_prices[id - 1] <= tool_budget && world.tool_supply[id - 1]) {
+            tool_prices[id - 1] <= tool_budget) {
             buy_tool_unchecked(world, shop, slot, id);
             tool_budget -= tool_prices[id - 1];
         }
@@ -144,9 +149,10 @@ Shop open_shop(World &world, Random &random, std::size_t slot, std::uint16_t pro
         shop.cards.push_back(id);
         --supply[id - 1];
     }
+    // Supply is a legacy shared pool (often eight units), not a MOD shop
+    // availability limit. Every shop visit offers all eight types.
     for (std::size_t index = 0; index < world.tool_supply.size(); ++index)
-        if (world.tool_supply[index])
-            shop.tools.push_back(static_cast<std::uint8_t>(index + 1));
+        shop.tools.push_back(static_cast<std::uint8_t>(index + 1));
     return shop;
 }
 bool buy_card(World &world, Shop &shop, std::size_t slot, std::uint8_t id) {
@@ -163,11 +169,11 @@ bool buy_tool(World &world, Shop &shop, std::size_t slot, std::uint8_t id) {
     auto &player = world.players.at(slot).state;
     const auto item = std::find(shop.tools.begin(), shop.tools.end(), id);
     if (shop.closed || !id || id > 8 || item == shop.tools.end() || player.points < tool_prices[id - 1] ||
-        player.tool_amounts[id - 1] >= mod::max_tool_amount || !world.tool_supply[id - 1])
+        player.tool_amounts[id - 1] >= mod::max_tool_amount)
         return false;
     buy_tool_unchecked(world, shop, slot, id);
-    if (!world.tool_supply[id - 1])
-        shop.tools.erase(item);
+    // One purchase per displayed item per visit; the next shop restocks.
+    shop.tools.erase(item);
     return true;
 }
 bool sell_card(World &world, Shop &shop, std::size_t slot, std::uint8_t id) {

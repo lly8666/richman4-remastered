@@ -101,6 +101,30 @@ void transactions() {
     w.players[0].state.tool_amounts[0] = 2;
     require(services::sell_tool(w, shop, 0, 1, 2) && w.players[0].state.points == 127,
             "quantity rounded once");
+    // The original shared pool reaches zero after ~8 purchases; MOD shops
+    // must continue selling until the personal per-tool limit of 999.
+    w = sample();
+    w.tool_supply.fill(0);
+    w.players[0].state.points = 50000;
+    w.players[0].state.tool_amounts[0] = 8;
+    Random restock_random(8);
+    auto restocked = services::open_shop(w, restock_random, 0);
+    require(restocked.tools.size() == 8, "depleted shared pool must not hide MOD shop tools");
+    require(services::buy_tool(w, restocked, 0, 1) &&
+                w.players[0].state.tool_amounts[0] == 9 &&
+                w.tool_supply[0] == 0,
+            "MOD tool purchase beyond eight remains possible and does not underflow supply");
+    w.players[0].state.tool_amounts[0] = 998;
+    restocked = services::open_shop(w, restock_random, 0);
+    require(services::buy_tool(w, restocked, 0, 1) &&
+                w.players[0].state.tool_amounts[0] == 999,
+            "MOD depleted-pool tool can reach exact 999 cap");
+    restocked = services::open_shop(w, restock_random, 0);
+    const auto points_before = w.players[0].state.points;
+    require(!services::buy_tool(w, restocked, 0, 1) &&
+                w.players[0].state.tool_amounts[0] == 999 &&
+                w.players[0].state.points == points_before,
+            "1000th tool rejected without charging points");
 }
 void computer_policy() {
     auto w = sample();

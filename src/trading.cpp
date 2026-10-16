@@ -2,6 +2,7 @@
 #include "rich4/trading.hpp"
 
 #include "rich4/inventory.hpp"
+#include "rich4/mod_rules.hpp"
 #include "rich4/legacy_float.hpp"
 #include "rich4/random.hpp"
 #include "rich4/services.hpp"
@@ -257,7 +258,7 @@ Result buy(World &w, std::size_t buyer, std::size_t seller, std::size_t index) {
             w.facilities[offer.item - 4000].owner_code = static_cast<std::uint8_t>(buyer + 1);
         break;
     case OfferKind::tool:
-        if (recipient.state.tool_amounts[offer.item - 1] >= 9)
+        if (recipient.state.tool_amounts[offer.item - 1] >= mod::max_tool_amount)
             return failure("Tool inventory is full");
         (void)consume_tool(source.state.tool_amounts, w.tool_supply, static_cast<std::uint8_t>(offer.item));
         (void)receive_tool(recipient.state.tool_amounts, w.tool_supply,

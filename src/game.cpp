@@ -3277,8 +3277,11 @@ struct GameSession::Impl {
     bool borrow(std::int32_t amount) {
         if (amount <= 0 || status().days_bank_no_loans || amount > subtract32(wealth(actor()), player().loan))
             return false;
-        player().loan = add32(player().loan, amount);
-        player().bank_balance = add32(player().bank_balance, amount);
+        // No half-applied loan if a near-INT64_MAX bank balance overflows.
+        const auto new_loan = mod::money_add(player().loan, amount);
+        const auto new_bank = mod::money_add(player().bank_balance, amount);
+        player().loan = new_loan;
+        player().bank_balance = new_bank;
         set_loan_due_date(actor());
         emit(GameEventKind::bank_transfer, "贷款已存入银行", amount);
         return true;
@@ -3305,17 +3308,22 @@ struct GameSession::Impl {
                           {world.header.date.year, world.header.date.month, world.header.date.day}, due)
                     : 0;
             const auto total = add32(player().cash, player().bank_balance);
-            if (player().bank_balance > multiply32(player().loan, 2) ||
+            if (__int128(player().bank_balance) > __int128(player().loan) * 2 ||
                 (remaining_days <= 6 && static_cast<double>(total) >= player().loan * 1.1))
                 (void)repay(player().loan, false);
         } else {
             const bool attempt = random.next() % 10 == 0;
             if ((attempt || add32(player().cash, player().bank_balance) < 30000) &&
                 !status().days_bank_no_loans && status().loan_ratio) {
-                const auto amount = multiply32(status().loan_ratio, wealth(actor())) / 100;
+                // Wealth can exceed INT32_MAX: the old multiply32 narrowed
+                // it before calculating the AI's loan percentage.
+                const auto eligible = std::max<std::int64_t>(0, wealth(actor()));
+                const auto amount = static_cast<std::int64_t>(
+                    (__int128(eligible) * status().loan_ratio) / 100);
                 if (amount > 0) {
+                    const auto new_bank = mod::money_add(player().bank_balance, amount);
                     player().loan = amount;
-                    player().bank_balance = add32(player().bank_balance, amount);
+                    player().bank_balance = new_bank;
                     set_loan_due_date(actor());
                     emit(GameEventKind::bank_transfer, "电脑玩家办理贷款", amount);
                 }
