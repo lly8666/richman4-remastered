@@ -14,9 +14,6 @@ namespace rich4 {
 namespace {
 constexpr std::array<std::int32_t, 7> increments{0, 100, 500, 1000, 5000, 10000, 0};
 
-std::int32_t add32(std::int32_t a, std::int32_t b) noexcept {
-    return std::bit_cast<std::int32_t>(static_cast<std::uint32_t>(a) + static_cast<std::uint32_t>(b));
-}
 std::int32_t multiply32(std::int32_t a, std::int32_t b) noexcept {
     return std::bit_cast<std::int32_t>(static_cast<std::uint32_t>(a) * static_cast<std::uint32_t>(b));
 }
@@ -190,7 +187,7 @@ bool AuctionSession::legal(AuctionAction action) const {
     if (code == 0 || code == 6)
         return true;
     const auto offered = static_cast<std::int64_t>(price_) + increments[code];
-    return offered <= world_->players.at(bidders_[current_].player).state.cash;
+    return offered <= INT32_MAX && offered <= world_->players.at(bidders_[current_].player).state.cash;
 }
 
 std::optional<AuctionDecision> AuctionSession::decision() const {
@@ -247,18 +244,32 @@ bool AuctionSession::tick() {
 bool AuctionSession::bid(AuctionAction action) {
     if (!legal(action))
         return false;
-    auto &bidder = bidders_[current_];
-    if (action == AuctionAction::pass)
-        bidder.passed = true;
-    else if (action == AuctionAction::withdraw)
-        bidder.present = false;
-    else {
-        price_ += increments[static_cast<unsigned>(action)];
-        last_bidder_ = current_;
-        for (auto &candidate : bidders_)
-            candidate.passed = false;
+    // Settlement can reject a 64-bit overflow; do not leave a half-applied
+    // winning bid in the resumable auction when its financial preflight fails.
+    const auto old_bidders = bidders_;
+    const auto old_current = current_;
+    const auto old_last_bidder = last_bidder_;
+    const auto old_price = price_;
+    try {
+        auto &bidder = bidders_[current_];
+        if (action == AuctionAction::pass)
+            bidder.passed = true;
+        else if (action == AuctionAction::withdraw)
+            bidder.present = false;
+        else {
+            price_ += increments[static_cast<unsigned>(action)];
+            last_bidder_ = current_;
+            for (auto &candidate : bidders_)
+                candidate.passed = false;
+        }
+        after_action();
+    } catch (...) {
+        bidders_ = old_bidders;
+        current_ = old_current;
+        last_bidder_ = old_last_bidder;
+        price_ = old_price;
+        throw;
     }
-    after_action();
     return true;
 }
 
@@ -281,10 +292,19 @@ void AuctionSession::after_action() {
 }
 
 void AuctionSession::settle() {
-    finished_ = true;
-    if (!last_bidder_)
+    if (!last_bidder_) {
+        finished_ = true;
         return;
+    }
     const auto winner = bidders_[*last_bidder_].player;
+    auto &buyer = world_->players.at(winner);
+    auto *seller = seller_ == -1 ? nullptr : &world_->players.at(static_cast<std::size_t>(seller_));
+
+    // Preflight both sides before changing property ownership or accounts.
+    // Auction prices remain original int32, but MOD balances are signed int64.
+    const auto buyer_cash = mod::money_sub(buyer.state.cash, price_);
+    const auto public_fund = seller ? world_->public_fund : mod::money_add(world_->public_fund, price_);
+    const auto seller_bank = seller ? mod::money_add(seller->state.bank_balance, price_) : std::int64_t{0};
     auto target = property(*world_, property_);
     if (*target.owner != winner + 1) {
         if (!*target.owner && *options_.lease_interval) {
@@ -294,18 +314,17 @@ void AuctionSession::settle() {
         }
         *target.owner = static_cast<std::uint8_t>(winner + 1);
     }
-    auto &buyer = world_->players.at(winner);
-    buyer.state.cash = add32(buyer.state.cash, -price_);
+    buyer.state.cash = buyer_cash;
     buyer.status.cumulative_spending += static_cast<std::uint32_t>(price_);
-    if (seller_ == -1)
-        world_->public_fund = add32(world_->public_fund, price_);
+    if (!seller)
+        world_->public_fund = public_fund;
     else {
-        auto &seller = world_->players.at(static_cast<std::size_t>(seller_));
-        seller.state.bank_balance = add32(seller.state.bank_balance, price_);
-        seller.status.cumulative_income += static_cast<std::uint32_t>(price_);
+        seller->state.bank_balance = seller_bank;
+        seller->status.cumulative_income += static_cast<std::uint32_t>(price_);
     }
     result_.winner = winner;
     result_.price = price_;
+    finished_ = true;
 }
 
 } // namespace rich4

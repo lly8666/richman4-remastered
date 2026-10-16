@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <limits>
 #include <stdexcept>
 
 namespace {
@@ -163,6 +164,86 @@ void ai_draws_and_bid_limits() {
         require(before == after, "auction must conserve cash plus public fund");
     }
 }
+
+void wide_money_and_atomic_auction_settlement() {
+    // A one-bid public sale must preserve both balances beyond INT32_MAX.
+    auto public_sale = world(1);
+    public_sale.players[0].state.cash = 5'000'000'000LL;
+    public_sale.public_fund = 3'000'000'000LL;
+    rich4::Random public_random(1);
+    rich4::AuctionSession public_session(public_sale, public_random, 2001);
+    require(public_session.bid(rich4::AuctionAction::raise_100), "64-bit public auction bid accepted");
+    require(public_session.finished() && public_session.result().price == 1100,
+            "64-bit public auction settled once");
+    require(public_sale.players[0].state.cash == 4'999'998'900LL &&
+                public_sale.public_fund == 3'000'001'100LL,
+            "64-bit public auction balances not narrowed to signed32");
+    require(public_sale.lands[1].economy.owner_code == 1, "64-bit public auction transfers property");
+
+    // A player-owned resale credits the seller's bank, not their cash.
+    auto resale = world(2);
+    resale.lands[1].economy.owner_code = 1;
+    resale.players[1].state.cash = 6'000'000'000LL;
+    resale.players[0].state.bank_balance = 4'000'000'000LL;
+    rich4::Random resale_random(2);
+    rich4::AuctionSession resale_session(resale, resale_random, 2001, 0);
+    require(resale_session.bid(rich4::AuctionAction::raise_100), "64-bit resale bid accepted");
+    require(resale_session.finished() && resale_session.result().winner == 1,
+            "64-bit resale winner");
+    require(resale.players[1].state.cash == 5'999'998'900LL &&
+                resale.players[0].state.bank_balance == 4'000'001'100LL &&
+                resale.players[0].state.cash == 100000,
+            "64-bit resale settlement keeps seller bank and buyer cash intact");
+    require(resale.lands[1].economy.owner_code == 2, "64-bit resale transfers ownership");
+
+    // Overflow is a rejected transaction: no property transfer, money movement,
+    // cumulative counters or partial auction state. Retrying is still possible.
+    auto near_limit = world(1);
+    near_limit.players[0].state.cash = 5'000'000'000LL;
+    near_limit.public_fund = std::numeric_limits<std::int64_t>::max() - 500;
+    rich4::Random overflow_random(3);
+    rich4::AuctionSession overflow_session(near_limit, overflow_random, 2001);
+    bool rejected = false;
+    try {
+        (void)overflow_session.bid(rich4::AuctionAction::raise_100);
+    } catch (const std::overflow_error &) {
+        rejected = true;
+    }
+    require(rejected, "overflowing public-fund auction must reject");
+    require(near_limit.players[0].state.cash == 5'000'000'000LL &&
+                near_limit.public_fund == std::numeric_limits<std::int64_t>::max() - 500 &&
+                near_limit.lands[1].economy.owner_code == 0 &&
+                near_limit.players[0].status.cumulative_spending == 0,
+            "overflow rejected without mutating cash, funds, owner or counters");
+    require(!overflow_session.finished() && overflow_session.price() == 1000 &&
+                !overflow_session.result().winner,
+            "overflow must restore the resumable auction bid");
+    near_limit.public_fund = 3'000'000'000LL;
+    require(overflow_session.bid(rich4::AuctionAction::raise_100) &&
+                near_limit.public_fund == 3'000'001'100LL,
+            "auction remains usable after overflow is corrected");
+
+    // Also reject seller-bank overflow without changing the property.
+    auto seller_overflow = world(2);
+    seller_overflow.lands[1].economy.owner_code = 1;
+    seller_overflow.players[1].state.cash = 5'000'000'000LL;
+    seller_overflow.players[0].state.bank_balance = std::numeric_limits<std::int64_t>::max() - 500;
+    rich4::Random seller_random(4);
+    rich4::AuctionSession seller_session(seller_overflow, seller_random, 2001, 0);
+    rejected = false;
+    try {
+        (void)seller_session.bid(rich4::AuctionAction::raise_100);
+    } catch (const std::overflow_error &) {
+        rejected = true;
+    }
+    require(rejected && !seller_session.finished(), "overflowing seller bank must reject");
+    require(seller_overflow.lands[1].economy.owner_code == 1 &&
+                seller_overflow.players[1].state.cash == 5'000'000'000LL &&
+                seller_overflow.players[0].state.bank_balance ==
+                    std::numeric_limits<std::int64_t>::max() - 500 &&
+                seller_overflow.players[0].status.cumulative_income == 0,
+            "seller overflow cannot partially transfer money or property");
+}
 } // namespace
 
 int main() {
@@ -172,6 +253,7 @@ int main() {
         no_sale_and_invalid_actions();
         leases_and_facilities();
         ai_draws_and_bid_limits();
+        wide_money_and_atomic_auction_settlement();
         std::cout << "auction tests passed\n";
     } catch (const std::exception &error) {
         std::cerr << error.what() << '\n';
