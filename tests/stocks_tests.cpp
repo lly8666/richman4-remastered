@@ -221,10 +221,10 @@ void compare_oracle(const std::filesystem::path &directory) {
         world.commercials[1].owner_code = static_cast<std::uint8_t>(row[9]);
         const auto result =
             rich4::stocks::sell_stock(world, player, 0, static_cast<std::int32_t>(row[1]), row[2] != 0);
-        check(std::bit_cast<std::uint32_t>(result.proceeds) == row[10], "original sale proceeds differs");
-        check(std::bit_cast<std::uint32_t>(world.players[player].state.bank_balance) == row[11],
+        check(static_cast<std::uint32_t>(result.proceeds) == row[10], "original sale proceeds differs");
+        check(static_cast<std::uint32_t>(world.players[player].state.bank_balance) == row[11],
               "original sale bank differs");
-        check(std::bit_cast<std::uint32_t>(world.public_fund) == row[12], "original sale fund differs");
+        check(static_cast<std::uint32_t>(world.public_fund) == row[12], "original sale fund differs");
         check(std::uint32_t(world.players[player].stocks[0].amount) == row[13],
               "original sale quantity differs");
         check(world.players[player].stocks[0].raw_cost_basis == row[14], "original sale basis differs");
@@ -297,7 +297,7 @@ void compare_oracle(const std::filesystem::path &directory) {
                 facility.land_price = static_cast<std::uint16_t>(4321 * index);
                 facility.price_per_level() = static_cast<std::uint16_t>(321 * index);
             }
-            const auto actual = std::bit_cast<std::uint32_t>(rich4::stocks::player_wealth(world, player));
+            const auto actual = static_cast<std::uint32_t>(rich4::stocks::player_wealth(world, player));
             if (actual != row[5]) {
                 std::cerr << "wealth case " << row[0] << " expected " << row[5] << " actual " << actual
                           << '\n';
@@ -397,8 +397,8 @@ void compare_oracle(const std::filesystem::path &directory) {
                 account.stocks[0].raw_cost_basis,
                 world.stocks[0].shares_available,
                 world.stocks[0].flags_10,
-                std::bit_cast<std::uint32_t>(account.state.cash),
-                std::bit_cast<std::uint32_t>(account.state.bank_balance),
+                static_cast<std::uint32_t>(account.state.cash),
+                static_cast<std::uint32_t>(account.state.bank_balance),
                 std::uint32_t(world.commercials[1].shares_remaining),
                 packed_order(world.commercials[1]),
                 world.commercials[1].owner_code};
