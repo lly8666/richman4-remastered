@@ -17,6 +17,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <sstream>
 
 namespace {
 void require(bool value, const char *message) {
@@ -612,6 +613,26 @@ const rich4::EffectEvent *find_effect(const std::vector<rich4::EffectEvent> &eff
 // Original fcn_0042ba97 on the 15th: listed companies pay their whole balance to the active
 // shareholders' deposits (binary32 share ratio, truncated product), then clear it; losses come out
 // of the deposit, then cash. Presentation effects carry the table, the draw and the month report.
+void mod_wide_company_dividend_settlement() {
+    auto w = world();
+    w.header.date = {14, 10, 2026};
+    w.stocks[0].flags_4 = 1;
+    w.commercials[1].funds = 15'100'000'000LL;
+    w.commercials[1].funds_change = 15'100'000'000LL;
+    w.players[0].stocks[0].amount = 100000;
+    w.players[0].state.bank_balance = 10000;
+    w.players[0].state.loan = 800'000'000;
+    rich4::GameSession session(std::move(w), 3);
+    const auto effects = play_days(session, 1);
+    const auto *dividend = find_effect(effects, rich4::EffectKind::dividend);
+    require(dividend && dividend->monthly && !dividend->monthly->dividends.empty() &&
+                dividend->monthly->dividends[0].earnings == 15'100'000'000LL &&
+                dividend->monthly->dividends[0].payout[0] == 15'100'000'000LL &&
+                session.world().players[0].state.bank_balance == 15'100'010'000LL &&
+                session.world().players[0].state.loan == 800'000'000 &&
+                session.world().commercials[1].funds == 0,
+            "64-bit company dividends must credit full bank amount and preserve loan");
+}
 void monthly_settlement() {
     auto value = world();
     value.header.date = {14, 10, 2026};
@@ -1196,6 +1217,33 @@ void god_card_arrival_presentation_order() {
             "fortune-god FLC must precede its caption and named card-reward box");
     require(gift.world().players[0].state.cards[0] == reward->value,
             "displayed reward card must be the card actually added to the player's bag");
+}
+void mod_legacy_econ3_sidecar_compatibility() {
+    auto w = world();
+    w.commercials[1].funds = 40000;
+    w.commercials[1].funds_change = -600;
+    const auto dat = w.export_save();
+    const auto latest = rich4::mod::encode_tool_extension(w, dat);
+    std::istringstream in(latest);
+    std::ostringstream legacy;
+    std::string line;
+    require(bool(std::getline(in, line)) &&
+                line.starts_with("RICH4-MOD-ECON-4 "), "expected new ECON-4 header");
+    line.replace(0, std::string("RICH4-MOD-ECON-4").size(), "RICH4-MOD-ECON-3");
+    legacy << line << '\n';
+    for (std::size_t n = 0; n < w.players.size() + w.stocks.size(); ++n) {
+        require(bool(std::getline(in, line)), "missing ECON-4 player/market line");
+        legacy << line << '\n';
+    }
+    require(bool(std::getline(in, line)), "missing ECON-4 commercial line");
+    for (const auto &company : w.commercials)
+        legacy << company.shares_remaining << ' ';
+    legacy << '\n' << in.rdbuf();
+    auto restored = rich4::World::from_save(rich4::SaveFile::decode(dat));
+    rich4::mod::apply_tool_extension(restored, dat, legacy.str());
+    require(restored.commercials[1].funds == 40000 &&
+                restored.commercials[1].funds_change == -600,
+            "ECON-3 compatibility must retain original DAT enterprise fields");
 }
 void mod_enterprise_ledger_save_regression() {
     auto w = world();
@@ -1855,6 +1903,7 @@ int main() {
         alliance_rent();
         bank_and_failure();
         thirty_days_and_timing();
+        mod_wide_company_dividend_settlement();
         monthly_settlement();
         same_save_interactive_reload_rng();
         save_reload_and_deferred_spawn();
@@ -1864,6 +1913,7 @@ int main() {
         god_spinner_presentation_order();
         native_actions_and_money_spinner();
         god_card_arrival_presentation_order();
+        mod_legacy_econ3_sidecar_compatibility();
         mod_enterprise_ledger_save_regression();
         mod_rally_loan_and_bank_balance_regression();
         mod_loan_stock_session_roundtrip();
