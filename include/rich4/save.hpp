@@ -53,7 +53,7 @@ struct PlayerState {
     std::int64_t loan;
     std::int64_t special_finance;
     std::uint16_t points;
-    std::array<std::uint8_t, 15> cards;        // Card IDs in inventory slot order.
+    CardSlots cards; // Legacy 15 ID slots plus MOD per-card stack quantities.
     ToolAmounts tool_amounts; // MOD: 16-bit counts, legacy DAT serializes only bytes.
 };
 
