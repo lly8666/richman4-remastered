@@ -1,5 +1,5 @@
 # 《大富翁4》原版重构与 MOD：开发全历史和可核查索引
-更新：2026-10-16。本记录收录 **截至 `8c55837cef6b4255462ac3fb2d4a0e75876f50de` 的 351 条可达 Git 提交记录**，由远端提交历史自动汇总；它不是声称能够复原没有落入 Git 的私人聊天、临时调试或丢失的构建产物。
+更新：2026-10-16。本记录收录 **截至 `24ace66441b5cfe0dea607fd0762513058de99f4` 的 367 条可达 Git 提交记录**，由远端提交历史自动汇总；它不是声称能够复原没有落入 Git 的私人聊天、临时调试或丢失的构建产物。
 
 ## 一、项目与分支
 - 源代码：[richman4-remastered](https://github.com/lly8666/richman4-remastered)；标准重构 `main` 用于尽力贴合 Windows 大富翁4 v3.11。
@@ -35,12 +35,28 @@
 - 原始游戏点券 16 bit，MOD 已让大笔道具销售点券饱和于 65535；是否继续拓宽属于另一个独立兼容性决策。
 - 此文档的附录提供所有可核查提交。分支继续演进时可按同一 GitHub API 列表重新生成附录，不要错误称其自动实时更新。
 
-## 四、提交历史附录（截至 8c55837cef6b，按新到旧）
+## 四、提交历史附录（截至 24ace66441b5，按新到旧）
 
 以下包含本轮资金/股市增容、编译失败及随后的修正；每条均链接到不可变的完整 Git commit。
 
 | 日期 (UTC) | 完整提交链接（短 SHA） | 变更标题 |
 |---|---|---|
+| 2026-10-16 | [`24ace66441b5`](https://github.com/lly8666/richman4-remastered/commit/24ace66441b5cfe0dea607fd0762513058de99f4) | MOD: restore full rule checkpoint on wide-money overflow before propagating error |
+| 2026-10-16 | [`55a63d7bc6f8`](https://github.com/lly8666/richman4-remastered/commit/55a63d7bc6f887484e803d8a830a249affb96092) | MOD: avoid INT64_MIN negation overflow in checked finance subtraction |
+| 2026-10-16 | [`ee2884c07ee4`](https://github.com/lly8666/richman4-remastered/commit/ee2884c07ee4d59cc38585ffa9aa6e56728c1636) | MOD regression: dividend overflow must not partially clear company funds |
+| 2026-10-16 | [`9a3f50802657`](https://github.com/lly8666/richman4-remastered/commit/9a3f5080265702656d00d248d529c7cba84d9157) | MOD: make high-value dividend settlement atomic across all companies and shareholders |
+| 2026-10-16 | [`c574add9c6fc`](https://github.com/lly8666/richman4-remastered/commit/c574add9c6fcb720f81f9e811127107c8567a4ed) | MOD regression: 15.1b company dividend and backward-compatible ECON-3 load |
+| 2026-10-16 | [`ae97b536d2f9`](https://github.com/lly8666/richman4-remastered/commit/ae97b536d2f974625f80df4b17f31b1b246d3b7f) | MOD: keep large stock portfolios out of legacy 32-bit AI budget even with small quota |
+| 2026-10-16 | [`2c7f1bccb970`](https://github.com/lly8666/richman4-remastered/commit/2c7f1bccb97099c6806d1ccd01f240cbd9048562) | MOD regressions: 160b card equalization, 50b bank theft, 17.6b company shop settlement |
+| 2026-10-16 | [`d94e38b6073e`](https://github.com/lly8666/richman4-remastered/commit/d94e38b6073e0ddd5390cc0f0ebf927fd982f965) | MOD: settle wide payee accounts atomically, support full 64-bit AI loan repayment and bank transfers |
+| 2026-10-16 | [`f4397ce5f68c`](https://github.com/lly8666/richman4-remastered/commit/f4397ce5f68c2d66b759d7fab8e7613c3bd9986d) | MOD test: compare low original 32 bits of widened special-actor callback amounts |
+| 2026-10-16 | [`4abf52cb5919`](https://github.com/lly8666/richman4-remastered/commit/4abf52cb591903af4fa91fc14b047a6cbac3214e) | MOD: widen wealth-equalizing cards and AI liquidity comparisons above 2.1b |
+| 2026-10-16 | [`e3fe24249c5f`](https://github.com/lly8666/richman4-remastered/commit/e3fe24249c5ffe3f79f63e08f77f7ac187d4f85b) | MOD: keep high-value event tax presentation amounts signed64 |
+| 2026-10-16 | [`5d0dd17c2f49`](https://github.com/lly8666/richman4-remastered/commit/5d0dd17c2f49060c79ed5d2f20796dc9a8772b54) | MOD regressions: protect 15b lottery pool, 50b cash tax, fortune bank theft and company news |
+| 2026-10-16 | [`d8f4af9ce85f`](https://github.com/lly8666/richman4-remastered/commit/d8f4af9ce85f742c35b3421b81f9b347066ac12a) | MOD: widen news tax, share awards, bank-event transfers, lottery and special-actor payment contracts |
+| 2026-10-16 | [`d17e168d9784`](https://github.com/lly8666/richman4-remastered/commit/d17e168d9784095859513204a05bca2825317129) | MOD: preserve 64-bit dividend presentation and test enterprise ECON-4 save integrity |
+| 2026-10-16 | [`c3d5f1d2b578`](https://github.com/lly8666/richman4-remastered/commit/c3d5f1d2b578f7e5f5a12ce3130926a1bde2a37a) | MOD: use signed64 enterprise funds and ECON-4 sidecar with legacy DAT preview |
+| 2026-10-16 | [`d9ac78ca8fa1`](https://github.com/lly8666/richman4-remastered/commit/d9ac78ca8fa19a00c584b2cdb6bd7a3195f3380d) | MOD docs: hand off 15.1b selloff root cause, regression, and verified CI |
 | 2026-10-16 | [`8c55837cef6b`](https://github.com/lly8666/richman4-remastered/commit/8c55837cef6b4255462ac3fb2d4a0e75876f50de) | MOD: fix AI bank INT32_MIN cash conversion and fortune income; replay 15.1b loan-funded stock sale |
 | 2026-10-16 | [`45233f5eb0c0`](https://github.com/lly8666/richman4-remastered/commit/45233f5eb0c0bf4a596f0e3208a547dff02fd43f) | MOD docs: make ECON-3 save requirements and current regression status explicit |
 | 2026-10-16 | [`be804e2480a8`](https://github.com/lly8666/richman4-remastered/commit/be804e2480a85567fa57fe1470e7318b113d90da) | MOD docs: hand off verified loan, share, shop and ECON-3 card stack changes |
