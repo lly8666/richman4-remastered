@@ -53,8 +53,8 @@ float quote(const StockState &stock) {
 float basis(const StockHolding &holding) {
     return std::bit_cast<float>(holding.raw_cost_basis);
 }
-std::int32_t liquidity(const WorldPlayer &player) {
-    return add(player.state.cash, player.state.bank_balance);
+std::int64_t liquidity(const WorldPlayer &player) {
+    return mod::money_add(player.state.cash, player.state.bank_balance);
 }
 
 // Loan dates are produced by packed-month addition: e.g. Nov 31 is retained by
@@ -305,12 +305,51 @@ std::vector<Trade> buy(World &world, Random &random, std::size_t actor, bool mar
     if (player.status.loan_due_date && days_until_loan(world, player) < 15) {
         return {};
     }
+    // Enlarged stock universes cannot be evaluated through the original 32-bit
+    // AI budget (which silently wraps above ~2 billion). Preserve original AI
+    // precisely for legacy-sized games; use a bounded 64-bit trade planner when
+    // any quota or cash exceeds the legacy domain.
+    if (player.state.bank_balance > INT32_MAX ||
+        std::any_of(world.stocks.begin(), world.stocks.end(),
+                    [](const auto &stock) { return stock.flags_10 > UINT16_MAX; })) {
+        const auto available = std::max<std::int64_t>(0, player.state.bank_balance);
+        auto budget = static_cast<std::int64_t>((__int128(available) * player.status.stock_investment_ratio) / 100);
+        budget = std::min(budget, available);
+        // Do not double-spend: purchases debit the bank immediately. Invest a
+        // bounded slice per decision, keeping cash available for ordinary turns.
+        budget = budget / 3;
+        for (std::size_t i = 0; i < world.stocks.size(); ++i) {
+            const auto &stock = world.stocks[i];
+            if (stock.suspension_days || !stock.flags_10 || !stock.shares_available ||
+                stocks::trend(world, i) == stocks::PriceTrend::limit_up)
+                continue;
+            const auto price = std::bit_cast<float>(stock.float_bits[2]);
+            if (!std::isfinite(price) || price < 1 || price > mod::max_stock_price)
+                continue;
+            const auto room = mod::max_holding_shares - player.stocks[i].amount;
+            if (room <= 0)
+                continue;
+            const auto affordable = static_cast<std::int64_t>(std::floor(static_cast<long double>(budget) / price));
+            const auto quantity = std::min<std::int64_t>({affordable, stock.flags_10,
+                                           stock.shares_available, room, INT32_MAX});
+            if (quantity <= 0)
+                continue;
+            try {
+                const auto trade = stocks::buy_stock(world, actor, i, static_cast<std::int32_t>(quantity), true);
+                return {{i, static_cast<std::int32_t>(quantity), trade.cost,
+                         trade.commercial_owner_changed}};
+            } catch (const std::invalid_argument &) {
+                continue; // insufficient for rounding of final share
+            }
+        }
+        return {};
+    }
     const auto value = holdings_value(world, actor);
     auto budget = multiply(add(value, liquidity(player)), player.status.stock_investment_ratio) / 100;
     if (value >= budget) {
         return {};
     }
-    budget = std::min(subtract(budget, value), player.state.bank_balance);
+    budget = mod::display_i32(std::min<std::int64_t>(subtract(budget, value), player.state.bank_balance));
     std::array<RatedStock, 12> candidates{};
     for (std::size_t i = 0; i < candidates.size(); ++i) {
         auto &candidate = candidates[i];
