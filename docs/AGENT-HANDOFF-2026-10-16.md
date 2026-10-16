@@ -135,3 +135,15 @@ ctest --test-dir build/ci --output-on-failure --parallel 3
 - **剩余有意窄化待定规则**：`TradeOffer.price` 是 int32、`TradeOffer.quantity` 是 uint16，股票大持仓并不等于玩家间一次要约可出售 10 亿股；目前保留原有 DAT/UI 契约。日股市 `stock_market_index` 为 int32，若 12 支股价均在 999999 内，求和乘 10 的理论上界低于 1.2 亿；须继续测试实际旧浮点与无效报价路径，不能只按类型下结论。
 - **存档未关闭**：Android `tools/native_game.cpp::write_save` 仍逐个写 DAT、mod、rng 三个文件，**没有跨文件原子替换**。侧车丢失时，一些饱和资金预览无法与合法的原版 DAT 最大值无歧义区分；不要擅自允许静默截断或宣称灾难恢复完成。
 - **Android 跟进状态**：正确 workflow `qairt-sdk-archive/.github/workflows/build-richman4-android-mod.yml` 仍锁定 `8bc6eb54`。已核实的成功 [run 38853125080](https://github.com/lly8666/qairt-sdk-archive/actions/runs/38853125080) **不包含**这两次新修复。遵照此次“代码修改只提交到 mod”要求，本轮未触碰工作流仓库的 `main`；下次打包需明确取得修改工作流 pin 的授权/范围。新代码没有真机验收，不要将核心 CI green 说成 Android UI green。
+
+
+## 11. 2026-10-16 用户追加请求：贷款、买股票、道具补货、卡片堆叠
+
+> **新代码 HEAD `6f8295ee35f4df014a7552b15f97577812e04fac`（文档提交前）；无素材 36 项 CTest 通过 [run 38873119777](https://github.com/lly8666/richman4-remastered/actions/runs/38873119777)。** 这不是 Android/SDL3 核心之外完整构建或真机验收。
+
+- **贷款/股票负资产审计**：贷款增加存款及同额债务，单纯借入不会提高或降低净资产；相同报价购股也应守恒，后续股价下跌可以产生真实负资产。修复 `src/game.cpp` AI 贷款的 32 位乘法与还款判断、人类贷款两边额度的溢出前置检查；`src/trading.cpp` 玩家间股票买卖的 32 位卖家入账、平均成本与 1bn 持股限制，溢出拒绝时不变更产权或资金。股票主市场之前已有 signed64 检查。新增 900m 初始、实际 800m 银行借款、999999 单价 1000 股、ECON-3 DAT/侧车重载守恒；高金额私人股单 5 亿旧持仓与银行余额溢出原子拒绝。**用户报告的实际负资产存档尚未取得，不能断言该玩家存档已恢复或负值一定是软件 bug。**
+- **道具商店**：原代码用了共用供应量 `world.tool_supply`（经常每类约 8）阻断再购买，即使玩家个人 MOD 上限是 999。改为每次进店展示前八类商品，世界供应量为零也可购买，个人仍严格封顶 999，失败不扣点。玩家间道具接收上限由 9 改为 999；旧针对 9 的测试同步更新。保留原版真实道具系统/效果，不能改变用户已认可的赠卡规则。
+- **30 类卡片各堆叠到 999**：运行时 `CardSlots` 保留原 15 个快捷格 ID 序与原 DAT 偏移，`stacked_amounts[30]` 保存每种实际数量；装载原 DAT 后合并相同 ID，使用一张减少一张，购买/出售/偷取沿用原流程；最多显示 15 **不同种类**，已有种类可累加至 999。屏幕 `tools/screens/items.cpp` 卡片网格采用深色金边计数 `×n`，库存/商店与偷取面板共用。尚未真机检查字体、遮挡、点击命中和多卡动画。
+- **ECON-3 侧车**：`include/rich4/mod_save.hpp` 新签名 `RICH4-MOD-ECON-3` 额外保存每玩家 30 种卡片的真实数量；旧 `RICH4-MOD-ECON-2` 与 `RICH4-MOD-TOOLS-1` 仍可按旧逻辑回读。DAT 保存仍使用原版卡片字节预览，完整数量仅存在 `.DAT.mod`；新 DAT 末尾带 `RICH4-MOD-COMPANION-REQUIRED-3` 标识，缺少侧车时拒读防止静默丢堆叠。注意跨文件写入仍非原子事务，**必须三文件组合备份**；旧版无标记的数据可能无法识别丢失侧车，不得承诺灾难恢复。
+- **回归与编译失败历史**：初版道具修复 38870503313 因旧测试仍断言 9 上限失败，测试更新后 [38870705276](https://github.com/lly8666/richman4-remastered/actions/runs/38870705276) success；卡片堆叠中间先因 `PlayerState.cards` 未接入新类型、再因测试缺引用报编译错误，补齐后 [38871735937](https://github.com/lly8666/richman4-remastered/actions/runs/38871735937) success；卡片商店/侧车落盘检查 [38872075063](https://github.com/lly8666/richman4-remastered/actions/runs/38872075063) success；后续高额交易边界测试先因错误 fixture 数量少于要约量失败，银行测试一开始用了经过而非停靠银行的随机种子，修正两项测试设置后 [38873119777](https://github.com/lly8666/richman4-remastered/actions/runs/38873119777) **36/36 success**。
+- **交付限制**：正确的 Android MOD 工作流仍绑定 `8bc6eb54c92a205001ed699786394f930c242457`，成功的旧版 APK [38853125080](https://github.com/lly8666/qairt-sdk-archive/actions/runs/38853125080) **不包含以上代码**。只向源码 `mod` 提交，本轮没有碰 `main` 或构建仓库 `main`；需要用户明确给出可动的单独 Android MOD 打包方式再交付新版 APK。新的界面尚未独立 Android/SDL3 编译、签名、真机审查。真实用户存档未作为输入，不能替用户宣称现存坏档已修复。

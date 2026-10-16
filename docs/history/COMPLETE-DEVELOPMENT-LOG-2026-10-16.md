@@ -1,5 +1,5 @@
 # 《大富翁4》原版重构与 MOD：开发全历史和可核查索引
-更新：2026-10-16。本记录收录 **截至 `9d05838a8ca7b6476b689bae4340a2e0d233059e` 的 336 条可达 Git 提交记录**，由远端提交历史自动汇总；它不是声称能够复原没有落入 Git 的私人聊天、临时调试或丢失的构建产物。
+更新：2026-10-16。本记录收录 **截至 `6f8295ee35f4df014a7552b15f97577812e04fac` 的 348 条可达 Git 提交记录**，由远端提交历史自动汇总；它不是声称能够复原没有落入 Git 的私人聊天、临时调试或丢失的构建产物。
 
 ## 一、项目与分支
 - 源代码：[richman4-remastered](https://github.com/lly8666/richman4-remastered)；标准重构 `main` 用于尽力贴合 Windows 大富翁4 v3.11。
@@ -35,12 +35,24 @@
 - 原始游戏点券 16 bit，MOD 已让大笔道具销售点券饱和于 65535；是否继续拓宽属于另一个独立兼容性决策。
 - 此文档的附录提供所有可核查提交。分支继续演进时可按同一 GitHub API 列表重新生成附录，不要错误称其自动实时更新。
 
-## 四、提交历史附录（截至 9d05838a8ca7，按新到旧）
+## 四、提交历史附录（截至 6f8295ee35f4，按新到旧）
 
 以下包含本轮资金/股市增容、编译失败及随后的修正；每条均链接到不可变的完整 Git commit。
 
 | 日期 (UTC) | 完整提交链接（短 SHA） | 变更标题 |
 |---|---|---|
+| 2026-10-16 | [`6f8295ee35f4`](https://github.com/lly8666/richman4-remastered/commit/6f8295ee35f4df014a7552b15f97577812e04fac) | MOD test: use settled bank stop rather than pass-through for high-value borrowing |
+| 2026-10-16 | [`432c6f307553`](https://github.com/lly8666/richman4-remastered/commit/432c6f307553b252b1a43e4598ddf819fc762e1d) | MOD test: distinguish loan option access from available borrowing collateral |
+| 2026-10-16 | [`72bd50e283c2`](https://github.com/lly8666/richman4-remastered/commit/72bd50e283c26009cf7d758a43601e36ca3fb8c0) | MOD test: seed enough shares for overflow-only peer trading regression |
+| 2026-10-16 | [`4c7d9060cca2`](https://github.com/lly8666/richman4-remastered/commit/4c7d9060cca214f44797330ff9d6e507b80eaf9d) | MOD regression: 800m actual bank loan plus stock buy survives ECON-3 reload |
+| 2026-10-16 | [`21ef802a46f9`](https://github.com/lly8666/richman4-remastered/commit/21ef802a46f95275db2e03a7f3a2afffe873b1c9) | MOD: reject peer stock seller-bank overflow atomically, test 500m holdings |
+| 2026-10-16 | [`fd4ebb856a16`](https://github.com/lly8666/richman4-remastered/commit/fd4ebb856a16202239af6f4991317f6bc5f290b1) | MOD: restock stacked cards and mark DAT to reject missing ECON-3 companions |
+| 2026-10-16 | [`25de887cc685`](https://github.com/lly8666/richman4-remastered/commit/25de887cc685b4f5d0e2acf6789ae004024c2828) | MOD test: include card price tables for stacked save regression |
+| 2026-10-16 | [`9c678ea4e528`](https://github.com/lly8666/richman4-remastered/commit/9c678ea4e528052c5c79075906ba2d53bd1a16f6) | MOD: wire stacked CardSlots into persisted player state |
+| 2026-10-16 | [`6bee997d7deb`](https://github.com/lly8666/richman4-remastered/commit/6bee997d7deb205e37000c91d4e34d3064550f5d) | MOD: stack cards to 999 with ECON-3 saves and count badges; protect loan-funded stock accounting |
+| 2026-10-16 | [`0e39799910f5`](https://github.com/lly8666/richman4-remastered/commit/0e39799910f59aef312233b1aefa0f4ef8a08f05) | MOD test: update tool trading cap expectation from nine to 999 |
+| 2026-10-16 | [`d94fc9a87e33`](https://github.com/lly8666/richman4-remastered/commit/d94fc9a87e33a8319ae2bd54e3d25159efdfc8ba) | MOD: restock tools beyond shared eight and widen bank loan arithmetic |
+| 2026-10-16 | [`fd43ac2bcf3f`](https://github.com/lly8666/richman4-remastered/commit/fd43ac2bcf3f8aa823129682614fbf5580d7f663) | MOD docs: record verified 64-bit auction and magic regressions with remaining financial risks |
 | 2026-10-16 | [`9d05838a8ca7`](https://github.com/lly8666/richman4-remastered/commit/9d05838a8ca7b6476b689bae4340a2e0d233059e) | MOD: preserve 64-bit magic targeting and atomic cash-to-bank transfers |
 | 2026-10-16 | [`a204cfec7818`](https://github.com/lly8666/richman4-remastered/commit/a204cfec7818a6331ea39522ed60ae61260c2bc3) | MOD: settle auctions with checked 64-bit balances and atomic overflow regression |
 | 2026-10-16 | [`9f12e1365707`](https://github.com/lly8666/richman4-remastered/commit/9f12e1365707086c514de1e34923ba509a39df43) | MOD: link full agent handoff and AGENTS entrypoint from MOD README |
