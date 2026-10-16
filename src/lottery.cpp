@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Original purchase/outcome/settlement rules: asm/rich4_ui_letou.asm.
 #include "rich4/lottery.hpp"
+#include "rich4/mod_rules.hpp"
 
 #include <algorithm>
 #include <array>
@@ -41,9 +42,10 @@ Purchase buy_ticket(World &world, std::size_t actor, std::uint32_t number) {
         return Purchase::already_owned;
     if (player.state.cash < ticket_price)
         return Purchase::insufficient_cash;
+    const auto next_fund = mod::money_add(world.public_fund, ticket_price);
     world.lottery_tickets[number - 1] = static_cast<std::uint8_t>(actor + 1);
     player.state.cash -= ticket_price;
-    world.public_fund = add(world.public_fund, ticket_price);
+    world.public_fund = next_fund;
     // The original direct subtraction does not add to cumulative spending.
     return Purchase::purchased;
 }
@@ -92,8 +94,8 @@ Draw draw(World &world, Random &random) {
         result.winner = owner - 1;
         result.payout = world.public_fund;
         auto &player = world.players[*result.winner];
-        player.state.cash = add(player.state.cash, result.payout);
-        player.status.cumulative_income += std::bit_cast<std::uint32_t>(result.payout);
+        player.state.cash = mod::money_add(player.state.cash, result.payout);
+        player.status.cumulative_income += static_cast<std::uint32_t>(result.payout);
         world.public_fund = 0;
         world.lottery_tickets.fill(0);
     }

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "rich4/special_actors.hpp"
+#include "rich4/mod_rules.hpp"
 #include "rich4/direction.hpp"
 #include "rich4/legacy_float.hpp"
 #include "rich4/services.hpp"
@@ -28,7 +29,7 @@ void prize_voice(Random &random, const Callbacks &callbacks, std::size_t owner, 
     if (price && callbacks.voice)
         callbacks.voice(owner, category);
 }
-void append(Result &result, EffectKind kind, std::size_t slot, std::int32_t target, std::int32_t amount,
+void append(Result &result, EffectKind kind, std::size_t slot, std::int32_t target, std::int64_t amount,
             std::uint16_t node) {
     result.effects.push_back({kind, slot, target, amount, node});
 }
@@ -155,7 +156,7 @@ Result interact(World &world, Random &random, std::size_t slot, bool stopped, co
                         continue;
                     const auto amount =
                         (numeric::Extended::from(target.bank_balance) * numeric::Extended::from(0.2))
-                            .integer();
+                            .integer64();
                     callbacks.pay(static_cast<std::int32_t>(victim), owner, amount, 5);
                     append(result, EffectKind::bank_taken, slot, static_cast<std::int32_t>(victim), amount,
                            node_id);
@@ -163,7 +164,7 @@ Result interact(World &world, Random &random, std::size_t slot, bool stopped, co
             }
         } else if (stopped) {
             const auto code = node.type_and_index;
-            std::uint32_t amount = 0;
+            std::int64_t amount = 0;
             std::int32_t payer = -1;
             bool collect = false;
             if (code > 2000 && code < 4000) {
@@ -177,7 +178,7 @@ Result interact(World &world, Random &random, std::size_t slot, bool stopped, co
                                 other.economy.street_name == land.economy.street_name)
                                 amount += other.land_price;
                         }
-                        amount *= std::bit_cast<std::uint32_t>(world.header.price_index);
+                        amount *= world.header.price_index;
                         collect = true;
                     } else {
                         amount = land.removed_building;
@@ -197,16 +198,15 @@ Result interact(World &world, Random &random, std::size_t slot, bool stopped, co
                 const auto &company = world.commercials.at(code - 6000);
                 if (company.owner_code && company.owner_code != owner + 1) {
                     payer = code - 5900;
-                    amount = std::bit_cast<std::uint32_t>(company.funds);
-                    collect = amount != 0;
+                    amount = company.funds;
+                    collect = amount > 0;
                 }
             }
             if (collect) {
                 if (!callbacks.pay)
                     return missing("特殊角色地产结算尚未接入");
-                const auto money = std::bit_cast<std::int32_t>(amount);
-                callbacks.pay(payer, owner, money, 0);
-                append(result, EffectKind::property_taken, slot, payer, money, node_id);
+                callbacks.pay(payer, owner, amount, 0);
+                append(result, EffectKind::property_taken, slot, payer, amount, node_id);
             }
         }
     }

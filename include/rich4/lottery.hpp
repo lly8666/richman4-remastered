@@ -26,7 +26,7 @@ struct Draw {
     bool held = false; // No drawing takes place when there are no sold tickets.
     std::uint8_t number = 0;
     std::optional<std::size_t> winner;
-    std::int32_t payout = 0;
+    std::int64_t payout = 0;
     bool sold_numbers_only = false; // Original rule when any player holds >10.
 };
 

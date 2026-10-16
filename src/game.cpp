@@ -1606,7 +1606,7 @@ struct GameSession::Impl {
         }
         finish_turn();
     }
-    std::int32_t pay(int payer_code, int recipient_code, std::int32_t requested, unsigned flags) {
+    std::int64_t pay(int payer_code, int recipient_code, std::int64_t requested, unsigned flags) {
         if (requested <= 0)
             return 0;
         auto paid = requested;
@@ -1621,7 +1621,7 @@ struct GameSession::Impl {
             auto &payer = world.players.at(slot).state;
             const auto available =
                 std::max<std::int64_t>(0, static_cast<std::int64_t>(payer.cash) + payer.bank_balance);
-            paid = static_cast<std::int32_t>(std::min<std::int64_t>(requested, available));
+            paid = std::min<std::int64_t>(requested, available);
             auto &first = flags & 4U ? payer.bank_balance : payer.cash;
             auto &second = flags & 4U ? payer.cash : payer.bank_balance;
             const auto first_payment = std::min<std::int64_t>(std::max(first, std::int64_t{0}), paid);

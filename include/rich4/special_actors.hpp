@@ -23,7 +23,7 @@ struct Effect {
     EffectKind kind;
     std::size_t actor = 4;    // Original actor slot, 4..7.
     std::int32_t target = -1; // Victim slot or encoded commercial payer where applicable.
-    std::int32_t amount = 0;  // Requested money / points / card or tool ID.
+    std::int64_t amount = 0;  // Wide MOD money or original small points/ID.
     std::uint16_t node = 0;
 };
 struct Result {
@@ -35,7 +35,7 @@ struct Result {
 };
 struct Callbacks {
     // Use the same finance routine as normal players (including bankruptcy).
-    std::function<void(std::int32_t, std::int32_t, std::int32_t, std::uint32_t)> pay;
+    std::function<void(std::int32_t, std::int32_t, std::int64_t, std::uint32_t)> pay;
     // Original removal includes supply return and counterpart respawning.
     std::function<void(std::uint16_t)> remove_object;
     // These receive the special actor slot; do not call normal-player injury.

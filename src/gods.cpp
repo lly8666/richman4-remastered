@@ -237,7 +237,7 @@ Result attach(World &world, Random &random, std::size_t actor, std::uint16_t id,
             voice(callbacks, actor, 8);
     } else if (kind == 2) {
         const auto amount = callbacks.choose_money(kind);
-        player.state.cash = add32(player.state.cash, amount);
+        player.state.cash = mod::money_add(player.state.cash, amount);
         player.status.cumulative_income += std::bit_cast<std::uint32_t>(amount);
         if (amount >= mul32(5000, world.header.price_index))
             income_voice(world, random, callbacks, actor, amount);

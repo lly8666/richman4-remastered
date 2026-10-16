@@ -460,13 +460,13 @@ EventResult apply_news_id(World &world, Random &random, std::uint8_t id, const E
         return result;
     }
     if (id >= 8 && id <= 10) {
-        std::array<std::int32_t, 4> totals{};
+        std::array<std::int64_t, 4> totals{};
         if (world.players.size() > totals.size())
             throw SaveError("News supports at most four players");
         if (id == 10) {
             for (std::size_t player = 0; player < world.players.size(); ++player)
                 for (const auto &stock : world.players[player].stocks)
-                    totals[player] = add(totals[player], stock.amount);
+                    totals[player] = mod::money_add(totals[player], stock.amount);
         } else
             for (const auto &property : properties(world)) {
                 if (property.owner != 0 && property.owner <= totals.size())
@@ -491,26 +491,26 @@ EventResult apply_news_id(World &world, Random &random, std::uint8_t id, const E
         return result;
     }
     if (id >= 11 && id <= 13) {
-        std::vector<std::int32_t> taxes(world.players.size());
+        std::vector<std::int64_t> taxes(world.players.size());
         for (std::size_t slot = 0; slot < world.players.size(); ++slot)
             if (alive(world.players[slot])) {
                 if (id == 11)
                     taxes[slot] = world.players[slot].state.cash / 20;
                 else if (id == 12) {
-                    std::int32_t total = 0;
+                    std::int64_t total = 0;
                     for (std::size_t i = 1; i < world.lands.size(); ++i) {
                         const auto &land = world.lands[i];
                         if (land.economy.owner_code == slot + 1)
-                            total = add(total, add(land.land_price,
-                                                   multiply(land.economy.level, land.price_per_level)));
+                            total = mod::money_add(total, std::int64_t(land.land_price) +
+                                                      std::int64_t(land.economy.level) * land.price_per_level);
                     }
                     for (std::size_t i = 1; i < world.facilities.size(); ++i) {
                         const auto &facility = world.facilities[i];
                         if (facility.owner_code == slot + 1)
-                            total = add(total, add(facility.land_price,
-                                                   multiply(facility.level, facility.price_per_level())));
+                            total = mod::money_add(total, std::int64_t(facility.land_price) +
+                                                      std::int64_t(facility.level) * facility.price_per_level());
                     }
-                    taxes[slot] = multiply(total / 20, world.header.price_index);
+                    taxes[slot] = mod::money_add(0, (total / 20) * world.header.price_index);
                 } else {
                     using E = numeric::Extended;
                     float value = 0;
@@ -523,7 +523,8 @@ EventResult apply_news_id(World &world, Random &random, std::uint8_t id, const E
                                     .single();
                     }
                     taxes[slot] =
-                        multiply((E::from(value) * E::from(0.05)).integer(), world.header.price_index);
+                        mod::money_add(0, (E::from(value) * E::from(0.05)).integer64() *
+                                             world.header.price_index);
                 }
             }
         for (std::size_t slot = 0; slot < taxes.size(); ++slot) {
@@ -738,7 +739,8 @@ EventResult apply_fortune_id(World &world, Random &random, std::size_t actor, st
             if (slot == actor || !alive(world.players[slot]) || world.players[slot].state.bank_balance == 0)
                 continue;
             const auto amount =
-                fraction32(world.players[slot].state.bank_balance, std::bit_cast<std::uint32_t>(0.1F));
+                (numeric::Extended::from(world.players[slot].state.bank_balance) *
+                 numeric::Extended::from(0.1F)).integer64();
             callbacks.pay(static_cast<std::int32_t>(slot), static_cast<std::int32_t>(actor), amount, 4);
         }
         auto result = done(id, "命运：取得其他玩家存款的一成");
