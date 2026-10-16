@@ -71,7 +71,7 @@ void append_digit(std::string &text, char digit, std::size_t limit, std::int64_t
     if (text.empty())
         text = "0";
     if (parse(text) > maximum)
-        text = std::to_string(std::max(0, maximum));
+        text = std::to_string(std::max(std::int64_t{0}, maximum));
 }
 
 std::optional<std::size_t> option_index(const GameDecision &decision, std::int32_t value) {
@@ -106,7 +106,7 @@ int ids::atm_digit(int digit) {
 void NumberPad::open(std::int64_t maximum, Done done) {
     active_ = true;
     dragging_ = false;
-    maximum_ = std::max(0, maximum);
+    maximum_ = std::max(std::int64_t{0}, maximum);
     text_ = "0";
     done_ = std::move(done);
     // The original opens at (256,144). The doubled touch pad sits lower so a prompt box fits above it.
@@ -186,7 +186,7 @@ void NumberPad::key(Host &host, char key) {
 }
 
 int NumberPad::next_key_towards(std::int64_t target) const {
-    const auto wanted = std::to_string(std::clamp(target, 0, maximum_));
+    const auto wanted = std::to_string(std::clamp(target, std::int64_t{0}, maximum_));
     if (text_ == wanted)
         return ids::pad_enter;
     if (text_ == "0")
@@ -710,7 +710,7 @@ void BankScreen::draw_director(Host &host, const World &world, const GameDecisio
                 return;
             }
             say(callback, {"請輸入您預備\n還款的金額～"});
-            pad.open(std::min<std::int64_t>(std::max<std::int64_t>(special, 0), INT32_MAX)), [this, actions, available, frame_pointer, sound](std::int64_t amount) {
+            pad.open(std::min<std::int64_t>(std::max<std::int64_t>(special, 0), INT32_MAX), [this, actions, available, frame_pointer, sound](std::int64_t amount) {
                 Host done{*frame_pointer, sound, {}};
                 if (amount <= 0) {
                     lines_.clear();
