@@ -308,7 +308,27 @@ std::vector<Trade> buy(World &world, Random &random, std::size_t actor, bool mar
     // AI budget (which silently wraps above ~2 billion). Preserve original AI
     // precisely for legacy-sized games; use a bounded 64-bit trade planner when
     // any quota or cash exceeds the legacy domain.
-    if (player.state.bank_balance > INT32_MAX ||
+    // A tiny remaining daily quota is not proof that an existing portfolio
+    // fits int32. Compare its mark-to-market value before the old FISTP32
+    // holdings_value and stock-investment budget are evaluated.
+    long double market_value = 0;
+    bool high_portfolio = false;
+    for (std::size_t i = 0; i < world.stocks.size(); ++i) {
+        if (!player.stocks[i].amount)
+            continue;
+        const auto price = quote(world.stocks[i]);
+        if (!std::isfinite(price)) {
+            high_portfolio = true;
+            break;
+        }
+        market_value += static_cast<long double>(player.stocks[i].amount) * price;
+        if (market_value > INT32_MAX || market_value < INT32_MIN) {
+            high_portfolio = true;
+            break;
+        }
+    }
+    if (high_portfolio || player.state.cash > INT32_MAX ||
+        player.state.bank_balance > INT32_MAX ||
         std::any_of(world.stocks.begin(), world.stocks.end(),
                     [](const auto &stock) { return stock.flags_10 > UINT16_MAX; })) {
         const auto available = std::max<std::int64_t>(0, player.state.bank_balance);

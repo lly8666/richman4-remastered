@@ -133,6 +133,31 @@ void unit_tests() {
     require(stocks_ai::sell(world, actual, 0, true).empty() && actual.state() == expected.state(),
             "A normal closed sale retains the initial draw");
 }
+void mod_wide_portfolio_with_narrow_quota() {
+    auto w = fixture(1, 0);
+    w.players[0].state.bank_balance = 1'000'000'000;
+    w.players[0].state.cash = 0;
+    w.players[0].status.stock_investment_ratio = 80;
+    w.players[0].status.loan_due_date = 0;
+    w.players[0].stocks[0].amount = 50000;
+    for (auto &stock : w.stocks) {
+        stock.flags_10 = 100;
+        stock.shares_available = 1'000'000;
+        stock.float_bits[2] = bits(999999.F);
+        stock.float_bits[1] = bits(999999.F);
+    }
+    w.stocks[0].flags_4 = 0;
+    Random random(0);
+    const auto old_loan = w.players[0].state.loan;
+    const auto before_bank = w.players[0].state.bank_balance;
+    const auto before_holdings = w.players[0].stocks[0].amount;
+    (void)stocks_ai::buy(w, random, 0, false);
+    require(w.players[0].state.loan == old_loan &&
+                w.players[0].state.bank_balance >= 0 &&
+                w.players[0].state.bank_balance <= before_bank &&
+                w.players[0].stocks[0].amount >= before_holdings,
+            "small current quota must not route 50b portfolio through 32-bit AI budget");
+}
 void golden(const char *path) {
     std::ifstream file(path);
     require(bool(file), "Cannot open stock AI oracle");
@@ -172,6 +197,7 @@ void golden(const char *path) {
 int main(int argc, char **argv) {
     try {
         unit_tests();
+        mod_wide_portfolio_with_narrow_quota();
         if (argc > 1) {
             golden(argv[1]);
         }
