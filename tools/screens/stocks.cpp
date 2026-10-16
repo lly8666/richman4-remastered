@@ -120,7 +120,7 @@ void StockMarket::draw(Host &host, const World &world, std::size_t player, Numbe
     text(frame, "買進", 163, 24, 2, row ? on : off);
     text(frame, "賣出", 237, 24, 2, row ? on : off);
     text(frame, "上市公司資訊", 343, 24, 2, row ? on : off);
-    text(frame, grouped(holder.state.bank_balance), 540, 24, 6, white_text);
+    text(frame, financial(holder.state.bank_balance), 540, 24, 6, white_text);
     for (const auto rect : {page_button, buy_button, sell_button, info_button, exit_button})
         if (frame.pointer_down && frame.pointer_in(rect) && !info_open && !pad.active())
             pressed_bevel(frame.canvas, rect);
@@ -207,7 +207,7 @@ void StockMarket::draw_card_target(Host &host, const World &world, std::size_t p
     text(frame, "買進", 163, 24, 2, off);
     text(frame, "賣出", 237, 24, 2, off);
     text(frame, "上市公司資訊", 343, 24, 2, off);
-    text(frame, grouped(world.players.at(player).state.bank_balance), 540, 24, 6, white_text);
+    text(frame, financial(world.players.at(player).state.bank_balance), 540, 24, 6, white_text);
     draw_prices(host, world, player);
     if (!decision)
         return;

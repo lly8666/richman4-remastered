@@ -154,7 +154,7 @@ void TradingBoard::draw_board(Host &host, const World &world, std::size_t actor,
         const int x = 104 + 72 * column, y = 114 + 72 * int(quote.seller);
         const auto sex = world.players[quote.seller].state.sex ? 1 : 0;
         frame.picture('p', 73, std::size_t(8 + int(quote.offer.kind) + 4 * sex), x, y);
-        text(frame, grouped(quote.offer.price), x + 36, y + 63, 2, small_black);
+        text(frame, financial(quote.offer.price), x + 36, y + 63, 2, small_black);
         const graphics::Rect cell{x, y, x + 72, y + 72};
         if (active && frame.pointer_down && frame.pointer_in(cell))
             darken(frame.canvas, cell, -12);
@@ -351,19 +351,19 @@ void TradingBoard::draw_detail(Host &host, const World &world, std::size_t actor
     if (offer.kind == OfferKind::stock) {
         rows = {{"股票", item_name(world, offer.kind, offer.item)},
                 {"張數", grouped(offer.quantity)},
-                {"市價", reference ? grouped(reference->reference_price) : "-"},
-                {"售價", grouped(offer.price)}};
+                {"市價", reference ? financial(reference->reference_price) : "-"},
+                {"售價", financial(offer.price)}};
     } else if (offer.kind == OfferKind::property) {
         const auto row = property_row(world, offer.item);
         rows = {{"地點", row.place},
                 {"開發", row.development},
-                {"收費", grouped(row.toll)},
-                {"市價", reference ? grouped(reference->reference_price) : grouped(row.price)},
-                {"售價", grouped(offer.price)}};
+                {"收費", financial(row.toll)},
+                {"市價", reference ? financial(reference->reference_price) : financial(row.price)},
+                {"售價", financial(offer.price)}};
     } else
         rows = {{offer.kind == OfferKind::tool ? "道具" : "卡片", item_name(world, offer.kind, offer.item)},
-                {"市價", reference ? grouped(reference->reference_price) : "-"},
-                {"售價", grouped(offer.price)}};
+                {"市價", reference ? financial(reference->reference_price) : "-"},
+                {"售價", financial(offer.price)}};
     for (std::size_t k = 0; k < rows.size(); ++k) {
         const int y = top + 91 + 30 * int(k);
         text(frame, rows[k].first, left + 29, y, 2, {14, 0xffffff, 0x101010, shadow | bold});
@@ -441,7 +441,7 @@ void draw_lottery(Host &host, const World &world, const GameDecision &decision,
     }
     // Jackpot: Panel 13 digits right-aligned ending at x=184 (18 px per digit, 12 per comma).
     frame.picture('p', 12, 9, 28, 27);
-    const auto pool = "$" + grouped(world.public_fund);
+    const auto pool = ui::money(world.public_fund);
     int right = 184;
     for (auto character = pool.rbegin(); character != pool.rend(); ++character) {
         const bool comma = *character == ',';
@@ -577,7 +577,7 @@ void draw_bidders(Frame &frame, const World &world, std::optional<std::size_t> c
         if (int(k) == seller)
             text(frame, "賣方", 590, y + 14, 2, auction_setup);
         else
-            text(frame, std::to_string(player.cash) + "元", 620, y + 14, 6, auction_setup);
+            text(frame, financial(player.cash) + "元", 620, y + 14, 6, auction_setup);
     }
 }
 } // namespace

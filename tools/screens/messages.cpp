@@ -217,9 +217,9 @@ Item news_item(const GameEvent &event, const World &world) {
         const auto character = static_cast<std::uint8_t>(world.players[slot].state.character % 12);
         if ((id >= 11 && id <= 13) || id == 23)
             item.rows.push_back({character, 3,
-                                 format(id == 23 ? "%s得到%d元" : "%s繳交%d元",
-                                        {player_name(world, std::int64_t(slot)),
-                                         std::int64_t(event.player_amounts[slot])})});
+                                 player_name(world, std::int64_t(slot)) +
+                                     (id == 23 ? "得到" : "繳交") +
+                                     ui::compact_money(event.player_amounts[slot], false) + "元"});
         else if (id < 4 || id == 29)
             item.rows.push_back({character, 4, {}});
     }
