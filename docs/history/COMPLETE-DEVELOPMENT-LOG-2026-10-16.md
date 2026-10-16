@@ -1,5 +1,5 @@
 # 《大富翁4》原版重构与 MOD：开发全历史和可核查索引
-更新：2026-10-16。本记录收录 **GitHub 当前 `mod` 分支可达的全部 285 条提交记录**，由远端提交历史自动汇总；它不是声称能够复原没有落入 Git 的私人聊天、临时调试或丢失的构建产物。
+更新：2026-10-16。本记录收录 **GitHub 当前 `mod` 分支可达的全部 317 条提交记录**，由远端提交历史自动汇总；它不是声称能够复原没有落入 Git 的私人聊天、临时调试或丢失的构建产物。
 
 ## 一、项目与分支
 - 源代码：[richman4-remastered](https://github.com/lly8666/richman4-remastered)；标准重构 `main` 用于尽力贴合 Windows 大富翁4 v3.11。
@@ -18,15 +18,61 @@
 8. **2026-10-15 掷骰澄清、撤回与更正**：曾误判为 AI 骰子电影复用了最后一帧并实施过一轮修复，随后已**整组撤回**；真正问题是反复读取同一 DAT 导致随机状态重复，改为交互式读档时按单调时钟重新播种，重播测试仍可用 `.rng` 保持可复现。见 [RNG](../migrations/008-random.md)、[回合修复](../migrations/012-native-turns.md)。
 9. **2026-10-15 / 10-16 独立 MOD**：原先提出股票 999,999、道具 999、初始 30,000,000、物价永远 1。已另建 `mod` 分支，拓宽道具内存计数并增加原 DAT 旁的 `.mod` 侧车校验文件，隔离 Android `applicationId`。**2026-10-16 新需求**再加初始 900,000,000、股票流通/交易量 10,000 倍以及足够宽的持仓/总资产，需继续检测有符号溢出和存档兼容。这些新要求不应被历史记录误当成已完工。
 
+## 三点一、2026-10-16 大额 MOD 资金与股票开发实录
+
+- **需求与分支隔离**：原版 9999 股价、9 件工具、普通物价规则维持在 `main`；MOD 增加 999999 股价、每种道具 999、初始资金 30000000 和 900000000 两档，物价恒 1；资金菜单从六档变为八档，保留原本默认的 200000。
+- **大股市约束**：原始市场已发行/流通的股数和交易配额字段为 16 bit，MOD 改成 uint32；新游戏的原始股市供应配置乘 **10000**，市场总容量每股 100000000，允许个人单股 1000000000 的受控持仓上限。不能在 16 bit 存档字段直接写大数。
+- **风险检查与修复**：原始 `PlayerState.cash/bank_balance/loan/special_finance`、`StockHolding.amount`、公共基金及买卖结果原为 32 bit；MOD 改成有符号 **int64**，采用准确的 float32 报价乘股数整数运算并在扣款/增股前进行所有校验；`stocks::player_wealth` 现在真正返回 64 bit 资产净值，而非原先超过 INT32 上限后饱和。AI 购股大市场加独立的大额预算路径。
+- **不破坏 DAT 的兼容格式**：DAT 留下传统有限位数的**饱和预览值**；同名 `.DAT.mod` 使用 `RICH4-MOD-ECON-2` 校验签名并保存原样 64-bit 玩家资金、股数、企业原始股额、市场当日交易量、公共资金及 999 件工具。读时通过尺寸、原 DAT 哈希、计数与逐字段饱和预览一致性测试，在全部成功后一次性提交；支持旧 MOD 工具侧车 `RICH4-MOD-TOOLS-1`。
+- **实测结果**：修改过程中若干 CI 编译因原版与 MOD 的整数类型耦合出错，见下方真实提交记录；经过定位与回归修复，`38850154985` 与 `38850256892` 均完整 **success**。新增边界测试包括 900m 初始资金、100m 股市规模、5000 万股高价买卖资金守恒、资产高于 INT32、附档错配原子拒绝。
+- **必须持续排查的项目**：大型企业账面资金、银行特殊融资、新闻/命运转账、股息分红原版 UI 中的 32 bit 展示与回合流程目前不宜宣布全面完美；需额外用 Android 的股票/资产显示和真钱包高值流程验证。请将此类事项放在开放问题中，不要把“此时 CI success”解释成永远不会有 bug。
+- **交付构建路径**：原版独立 Android workflow 不应修改其源码 SHA；另建 `build-richman4-android-mod.yml` 独立打包 `io.divby0.rich4.mod`，并在构建成功后核对 APK。
+- **近期改动**：后续若需更新历史附录，按 GitHub API 当前 `mod` 所有可达 commits 重建；此处正文保留历史决策以供追溯。
+
 ## 三、已知未完成与风险
 - 上述修复有源码/CI 依据，但并非所有地格、卡片、新闻、神明特效都已在实体 Android 与原 Windows EXE 双画面对齐。换地换屋双目标飞卡/闪烁、核弹白化与某些设置页面仍有已记录缺口。
 - 原 DAT 道具数量只有 8 bit，股票流通量含 16-bit 字段，资金/持仓和原 API 多为 32 bit。MOD 的宽额交易/资产必须对**内存、UI、数值计算、旧存档序列化、侧车一致性、回档、卖出股权和 AI 逻辑**一起实施；只改上限可能造成资产回绕为负数。
 - 原始游戏点券 16 bit，MOD 已让大笔道具销售点券饱和于 65535；是否继续拓宽属于另一个独立兼容性决策。
 - 此文档的附录提供所有可核查提交。分支继续演进时可按同一 GitHub API 列表重新生成附录，不要错误称其自动实时更新。
 
-## 四、提交历史附录（从最新到最早）
+## 四、提交历史附录（截至文档本次更新，按新到旧）
+
+以下包含本轮资金/股市增容、编译失败及随后的修正；每条均链接到不可变的完整 Git commit。
+
 | 日期 (UTC) | 完整提交链接（短 SHA） | 变更标题 |
 |---|---|---|
+| 2026-10-16 | [`99712ca5c03f`](https://github.com/lly8666/richman4-remastered/commit/99712ca5c03fba222e8c4c26558b9f93b846485c) | MOD: document 900m tier, 10000x shares, 64-bit net worth, versioned financial sidecar and limitations |
+| 2026-10-16 | [`3fc9158f3b68`](https://github.com/lly8666/richman4-remastered/commit/3fc9158f3b682dd741ecd2453a7952b95664ed85) | MOD: retain vanilla 200000 default after adding both 30m and 900m start funds |
+| 2026-10-16 | [`393c2632805e`](https://github.com/lly8666/richman4-remastered/commit/393c2632805e8d0ccabbbe4c8bda4e55fdaaa2ae) | MOD CI: test every source and fixture commit to catch cross-module financial couplings |
+| 2026-10-16 | [`b7da39399fa0`](https://github.com/lly8666/richman4-remastered/commit/b7da39399fa0db519548bd225e9e793d67105485) | MOD tests: project wide cash to original oracle's low32 value |
+| 2026-10-16 | [`3b2f77cb4a91`](https://github.com/lly8666/richman4-remastered/commit/3b2f77cb4a91211077e698ea12dd960c87d4342f) | MOD tests: compare original low-32-bit oracle projections of widened finance fields |
+| 2026-10-16 | [`078e5e625ac3`](https://github.com/lly8666/richman4-remastered/commit/078e5e625ac38f9acea5594a51f1595efb439d2a) | MOD tests: checksum-linked 64-bit DAT companion restores trillion-dollar money and 50m shares |
+| 2026-10-16 | [`90984f94fabf`](https://github.com/lly8666/richman4-remastered/commit/90984f94fabf329c19a7beb8d55bc2549a37bf86) | MOD test: 900 million starting money and 10000x original stock float initialize exactly |
+| 2026-10-16 | [`afe89349624e`](https://github.com/lly8666/richman4-remastered/commit/afe89349624e70073053a6635f63294a214ea49c) | MOD tests: prove 50m share trades, 64-bit balances and net wealth are exact and atomic |
+| 2026-10-16 | [`b6725f1087f2`](https://github.com/lly8666/richman4-remastered/commit/b6725f1087f2c3869ee5a5c5cf452dc69a45d31c) | MOD: prevent stock AI 32-bit budget wraps by adding bounded 64-bit large-market planner |
+| 2026-10-16 | [`d01dc22eb7fc`](https://github.com/lly8666/richman4-remastered/commit/d01dc22eb7fcf508daf654d0f2a97ef643cc69be) | MOD: block incomplete DAT reload when high stock or inventory state lost its sidecar |
+| 2026-10-16 | [`edfa0f826604`](https://github.com/lly8666/richman4-remastered/commit/edfa0f8266049fd71d6be15c4d46e93787927b9d) | MOD: bound stock-AI buy quantities by widened quotas and per-player cap |
+| 2026-10-16 | [`f8ec1b8baf6b`](https://github.com/lly8666/richman4-remastered/commit/f8ec1b8baf6be3c819ae9174548be3a1e8bd38f4) | MOD: preserve 64-bit money in stock transaction and bank event records |
+| 2026-10-16 | [`991ca8290cca`](https://github.com/lly8666/richman4-remastered/commit/991ca8290ccae6b974a35753ae70e68d5fd570cd) | MOD: preserve 64-bit money in stock transaction and bank event records |
+| 2026-10-16 | [`be0994b096b1`](https://github.com/lly8666/richman4-remastered/commit/be0994b096b119f138dc4e78f104cd25c510efa1) | MOD: aggregate monthly payouts in int64 and safely reject overflow stock trades |
+| 2026-10-16 | [`79305a64c7d5`](https://github.com/lly8666/richman4-remastered/commit/79305a64c7d5574cec34145a2f6d21836170669c) | MOD: safely bound auction bid by 64-bit cash and 32-bit auction interface |
+| 2026-10-16 | [`dae420379322`](https://github.com/lly8666/richman4-remastered/commit/dae4203793222c683785888a678f8edc2ec1f315) | MOD: sum aggregate bank/financing/share totals in 64 bits without overload ambiguity |
+| 2026-10-16 | [`7a26376cdd65`](https://github.com/lly8666/richman4-remastered/commit/7a26376cdd6573cec1e4be03b0a379ccb63e8b0e) | MOD: preserve high-precision money through core payments, bank actions and larger primary trades |
+| 2026-10-16 | [`0dd701ba3311`](https://github.com/lly8666/richman4-remastered/commit/0dd701ba3311e414201addf0924a00e6b95e0681) | MOD: centralize checked signed-64-bit financial arithmetic and legacy display projection |
+| 2026-10-16 | [`9684a49af866`](https://github.com/lly8666/richman4-remastered/commit/9684a49af8662a483519644b67c30a5a8559ab8c) | MOD: fix mixed-width bank repayment maximum expression |
+| 2026-10-16 | [`cec7cc4e476a`](https://github.com/lly8666/richman4-remastered/commit/cec7cc4e476ae6b40bb3a87a183f95ccc82e6784) | MOD CI: run full native regression suite on financial limits and sidecar changes |
+| 2026-10-16 | [`badbdf8fde88`](https://github.com/lly8666/richman4-remastered/commit/badbdf8fde8844e4a42d8c3a47c20d1f907169d9) | MOD: versioned checksum-bound 64-bit financial and stock sidecar; transactional restore and v1 compatibility |
+| 2026-10-16 | [`93dd1ef31cf0`](https://github.com/lly8666/richman4-remastered/commit/93dd1ef31cf0d89a44540b90baf514f1a8c97024) | MOD: calculate true signed-64-bit net assets and expand stock quota scaling |
+| 2026-10-16 | [`cf9a55aa9c6f`](https://github.com/lly8666/richman4-remastered/commit/cf9a55aa9c6fc766829f55698e0251d0ec7fb1e0) | MOD: define one-billion share per-stock holding safety limit |
+| 2026-10-16 | [`79e718035add`](https://github.com/lly8666/richman4-remastered/commit/79e718035add446864ea14dc660205c39fbb318a) | MOD: transact 100m shares at 999999 using exact checked 64-bit money and wide counters |
+| 2026-10-16 | [`5eb3eb6e0c4e`](https://github.com/lly8666/richman4-remastered/commit/5eb3eb6e0c4e1a4e61efec13fedfc012f4c9b25f) | MOD: initialize 10000x larger stock market and serialize saturated legacy DAT financial previews |
+| 2026-10-16 | [`05d772f334b2`](https://github.com/lly8666/richman4-remastered/commit/05d772f334b24a54d2c6e0979091bfded0c61fe1) | MOD: widen money, holdings and stock supply in runtime; track 10000x market shares |
+| 2026-10-16 | [`d0f5f2a2aa4d`](https://github.com/lly8666/richman4-remastered/commit/d0f5f2a2aa4d74c6a4f387fc6674e3500d046815) | MOD: widen money, holdings and stock supply in runtime; track 10000x market shares |
+| 2026-10-16 | [`71e25d4ee354`](https://github.com/lly8666/richman4-remastered/commit/71e25d4ee3540e163b3370dc707e70d23dd99bb3) | MOD: widen money, holdings and stock supply in runtime; track 10000x market shares |
+| 2026-10-16 | [`f56602651cfb`](https://github.com/lly8666/richman4-remastered/commit/f56602651cfbb84d051492d6dbccc5011edf4418) | MOD: widen money, holdings and stock supply in runtime; track 10000x market shares |
+| 2026-10-16 | [`114ee37a2022`](https://github.com/lly8666/richman4-remastered/commit/114ee37a20220a14a40647d8e771422e338fce02) | MOD: widen money, holdings and stock supply in runtime; track 10000x market shares |
+| 2026-10-16 | [`b2e600ea22d4`](https://github.com/lly8666/richman4-remastered/commit/b2e600ea22d48e5ce138966dc8e059e98edd1ecc) | MOD: add 900000000 start capital as eighth fund tier and resize/select dropdown safely |
+| 2026-10-16 | [`a7209514fc37`](https://github.com/lly8666/richman4-remastered/commit/a7209514fc37d79bd8ac6773896d95e84b1dcd6a) | MOD: archive all 285 reachable Git development commits and migration milestones |
 | 2026-10-15 | [`a779b7f9d31e`](https://github.com/lly8666/richman4-remastered/commit/a779b7f9d31ec511967240d7c4e8fa125f96e5a3) | MOD: fit 2-3 digit inventory tool counts without covering tool sprites |
 | 2026-10-15 | [`17461d0979db`](https://github.com/lly8666/richman4-remastered/commit/17461d0979db164b2b69ca178f61b7cfb1b81c55) | Document MOD economics, original DAT sidecar requirement, overflow guards and separate Android app |
 | 2026-10-15 | [`f6f6a9ba2d73`](https://github.com/lly8666/richman4-remastered/commit/f6f6a9ba2d73c580230973cb0dcc193c2bc6fcea) | MOD: verify actual DAT-backed game sessions reset inflation from 99 to 1 |
