@@ -5,6 +5,7 @@
 #include "voices.hpp" // AUDIO: clerk voice ids
 
 #include "rich4/calendar.hpp"
+#include "rich4/mod_rules.hpp"
 #include "rich4/stocks.hpp"
 #include "rich4/world.hpp"
 
@@ -309,7 +310,7 @@ void BankScreen::say(Host &host, std::vector<std::string> lines) {
 
 std::int32_t BankScreen::atm_maximum(const World &world, std::size_t slot) const {
     const auto &player = world.players.at(slot).state;
-    return std::max(0, mode_ == 0 ? player.bank_balance : player.cash);
+    return mod::display_i32(std::max<std::int64_t>(0, mode_ == 0 ? player.bank_balance : player.cash));
 }
 
 void BankScreen::draw(Host &host, const World &world, const GameDecision &decision, NumberPad &pad,
