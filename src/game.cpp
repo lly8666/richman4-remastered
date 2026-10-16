@@ -166,7 +166,7 @@ struct GameSession::Impl {
         return id && id <= world.objects.size() ? world.objects[id - 1].kind : 0;
     }
     std::uint8_t god_kind() const { return god_kind(actor()); }
-    void emit(GameEventKind kind, std::string message, std::int32_t amount = 0) {
+    void emit(GameEventKind kind, std::string message, std::int64_t amount = 0) {
         events.push_back({kind, actor(), amount, player().node_id, std::move(message)});
     }
     // ---- Presentation effects (docs/ui/effects.md §9): read-only, never draw randomness. ----
