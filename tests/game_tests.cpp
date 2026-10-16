@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include "rich4/services.hpp"
 #include "rich4/calendar.hpp"
 #include "rich4/game.hpp"
 #include "rich4/mod_save.hpp"
