@@ -195,6 +195,47 @@ void world_news() {
             "Resume event selects an actually suspended stock");
 }
 
+void mod_high_value_news_and_fortune() {
+    auto w = fixture();
+    Random random(9);
+    w.players[0].state.cash = 50'000'000'000LL;
+    std::int64_t observed = -1;
+    EventCallbacks callbacks;
+    callbacks.pay = [&](std::int32_t payer, std::int32_t payee, std::int64_t amount,
+                        std::uint32_t) {
+        if (payer == 0 && payee == -1)
+            observed = amount;
+    };
+    const auto tax = apply_news_id(w, random, 11, callbacks);
+    require(tax.supported && observed == 2'500'000'000LL &&
+                tax.player_amounts[0] == 2'500'000'000LL,
+            "MOD cash tax must calculate 2.5b instead of a signed32 negative amount");
+    w = fixture();
+    for (std::size_t s = 0; s < 3; ++s) w.players[0].stocks[s].amount = 900'000'000;
+    for (std::size_t s = 0; s < 4; ++s) w.players[1].stocks[s].amount = 900'000'000;
+    const auto award = apply_news_id(w, random, 10);
+    require(award.supported && award.subject == 1,
+            "news greatest shareholdings must compare accumulated counts beyond 2.1b");
+    w = fixture();
+    w.players[1].state.bank_balance = 50'000'000'000LL;
+    observed = -1;
+    callbacks.pay = [&](std::int32_t payer, std::int32_t payee, std::int64_t amount,
+                        std::uint32_t) {
+        if (payer == 1 && payee == 0)
+            observed = amount;
+    };
+    require(apply_fortune_id(w, random, 0, 4, callbacks).supported &&
+                observed > 4'000'000'000LL,
+            "fortune deposit theft must not use a signed32 fraction");
+    w = fixture();
+    w.commercials[1].funds = 15'100'000'000LL;
+    w.commercials[1].funds_change = 12'000'000'000LL;
+    callbacks.update_stocks = [](std::uint32_t) {};
+    require(apply_news_id(w, random, 35, callbacks).supported &&
+                w.commercials[1].funds == 30'200'000'000LL &&
+                w.commercials[1].funds_change == 42'200'000'000LL,
+            "news profit doubling must retain 64-bit company and delta ledgers");
+}
 void money_and_gods() {
     auto world = fixture();
     Random random(1);
@@ -349,6 +390,7 @@ int main() {
         selection_rules();
         boundaries_are_explicit();
         world_news();
+        mod_high_value_news_and_fortune();
         money_and_gods();
         physical_and_inventory();
         every_handler_is_explicit();

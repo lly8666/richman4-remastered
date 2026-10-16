@@ -44,8 +44,8 @@ void purchases() {
             "No inactive-player purchase");
     world.public_fund = std::numeric_limits<std::int32_t>::max() - 999;
     require(lottery::buy_ticket(world, 1, 1) == lottery::Purchase::purchased &&
-                world.public_fund == std::numeric_limits<std::int32_t>::min(),
-            "Original accumulator wraps at32bits");
+                world.public_fund == std::int64_t(INT32_MAX) + 1,
+            "MOD ticket purchase retains whole public fund beyond signed32");
     for (auto invalid : {0U, 37U}) {
         bool rejected = false;
         try {
@@ -101,10 +101,10 @@ void drawings() {
                 std::all_of(world.lottery_tickets.begin(), world.lottery_tickets.end(),
                             [](auto value) { return value == 0; }),
             "Winning ticket pays its owner and retires every ticket");
-    require(world.players[1].state.cash == std::numeric_limits<std::int32_t>::min() + 14999 &&
+    require(world.players[1].state.cash == std::int64_t(INT32_MAX) + 15000 &&
                 world.players[1].status.cumulative_income == 14984 &&
                 world.players[1].state.bank_balance == 10000,
-            "Prize credits cash and cumulative income with original32bit wrap");
+            "MOD prize credits whole signed64 cash; legacy status counter still wraps");
     world = fixture();
     for (std::size_t i = 10; i < 20; ++i)
         world.lottery_tickets[i] = 1;
@@ -122,6 +122,26 @@ void drawings() {
         world.lottery_tickets[i] = static_cast<std::uint8_t>(i < 10 ? 1 : 2);
     random = Random(1);
     require(!lottery::draw(world, random).sold_numbers_only, "Threshold is per-owner, not total sold count");
+}
+void wide_pool_and_atomic_rejection() {
+    auto w = fixture();
+    w.public_fund = 15'100'000'000LL;
+    w.lottery_tickets[0] = 1;
+    Random random(0);
+    const auto win = lottery::draw(w, random);
+    require(win.winner == 0 && win.payout == 15'100'000'000LL &&
+                w.players[0].state.cash == 15'100'005'000LL && w.public_fund == 0,
+            "15.1b pool must pay full winner cash without signed32 truncation");
+    w = fixture();
+    w.public_fund = INT64_MAX - 999;
+    w.players[0].state.cash = 1000;
+    const auto tickets = w.lottery_tickets;
+    bool rejected = false;
+    try { (void)lottery::buy_ticket(w, 0, 1); }
+    catch (const std::overflow_error &) { rejected = true; }
+    require(rejected && w.public_fund == INT64_MAX - 999 &&
+                w.players[0].state.cash == 1000 && w.lottery_tickets == tickets,
+            "ticket pool overflow must not debit cash or reserve the number");
 }
 void cleanup_and_calendar() {
     auto world = fixture();
@@ -142,6 +162,7 @@ int main() {
         purchases();
         computer_purchase();
         drawings();
+        wide_pool_and_atomic_rejection();
         cleanup_and_calendar();
         std::cout << "Lottery state tests passed\n";
         return 0;

@@ -181,7 +181,7 @@ Result interact(World &world, Random &random, std::size_t slot, bool stopped, co
                         amount *= world.header.price_index;
                         collect = true;
                     } else {
-                        amount = land.removed_building;
+                        amount = std::bit_cast<std::int32_t>(land.removed_building);
                         collect = amount != 0;
                     }
                 }
@@ -191,7 +191,7 @@ Result interact(World &world, Random &random, std::size_t slot, bool stopped, co
                     payer = facility.owner_code - 1;
                     amount = slot == 6 ? facility.land_price *
                                              std::bit_cast<std::uint32_t>(world.header.price_index)
-                                       : facility.removed_building;
+                                       : std::bit_cast<std::int32_t>(facility.removed_building);
                     collect = slot == 6 || amount != 0;
                 }
             } else if (code > 6000 && code < 8000 && slot == 7) {
@@ -199,7 +199,7 @@ Result interact(World &world, Random &random, std::size_t slot, bool stopped, co
                 if (company.owner_code && company.owner_code != owner + 1) {
                     payer = code - 5900;
                     amount = company.funds;
-                    collect = amount > 0;
+                    collect = amount != 0;
                 }
             }
             if (collect) {
