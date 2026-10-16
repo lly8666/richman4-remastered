@@ -50,13 +50,14 @@ std::int32_t fraction32(std::int32_t amount, std::uint32_t fraction_bits) {
     return static_cast<std::int32_t>(negative ? -static_cast<std::int64_t>(product)
                                               : static_cast<std::int64_t>(product));
 }
-void income(World &world, std::size_t slot, std::int32_t amount, bool cash = true) {
+void income(World &world, std::size_t slot, std::int64_t amount, bool cash = true) {
     auto &player = world.players.at(slot);
-    if (cash)
-        player.state.cash = add(player.state.cash, amount);
-    else
-        player.state.bank_balance = add(player.state.bank_balance, amount);
-    player.status.cumulative_income += std::bit_cast<std::uint32_t>(amount);
+    // Event 23 awards 10% of a bank balance. Once deposits exceed 2.1b,
+    // legacy add(int32,int32) truncated the ENTIRE balance on payout.
+    auto &account = cash ? player.state.cash : player.state.bank_balance;
+    account = mod::money_add(account, amount);
+    // Original status statistics remain an unsigned 32-bit running counter.
+    player.status.cumulative_income += static_cast<std::uint32_t>(amount);
 }
 void voice(const EventCallbacks &callbacks, std::size_t actor, std::uint8_t category) {
     if (callbacks.voice)
@@ -718,7 +719,9 @@ EventResult apply_fortune_id(World &world, Random &random, std::size_t actor, st
         if (id == 2) {
             if (modifier == 2)
                 amount = add(amount, amount);
-            player.state.loan = add(player.state.loan, amount);
+            // Even a small identity-theft loan must not narrow the existing
+            // 64-bit MOD debt back to a signed 32-bit integer.
+            player.state.loan = mod::money_add(player.state.loan, amount);
             callbacks.set_loan_due_date(actor);
             insurance(world, actor, amount, callbacks);
         } else

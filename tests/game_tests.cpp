@@ -1197,6 +1197,91 @@ void god_card_arrival_presentation_order() {
     require(gift.world().players[0].state.cards[0] == reward->value,
             "displayed reward card must be the card actually added to the player's bag");
 }
+void mod_rally_loan_and_bank_balance_regression() {
+    auto value = world();
+    value.players[0].state.cash = 10'000'000;
+    value.players[0].state.bank_balance = 900'000'000;
+    value.players[0].stocks[0] = {};
+    value.stocks[0].flags_4 = 0;
+    value.stocks[0].shares_available = 100'000'000;
+    value.stocks[0].flags_10 = 100'000'000;
+    const auto quote = [&](float price) {
+        value.stocks[0].float_bits[2] = std::bit_cast<std::uint32_t>(price);
+    };
+    quote(1000);
+    require(rich4::stocks::buy_stock(value, 0, 0, 450'000, true).cost == 450'000'000,
+            "first 450m share purchase at 1000");
+    quote(2000);
+    require(rich4::stocks::buy_stock(value, 0, 0, 225'000, true).cost == 450'000'000,
+            "second 450m share purchase at 2000");
+    require(value.players[0].state.bank_balance == 0 &&
+                value.players[0].stocks[0].amount == 675'000,
+            "two early purchases must conserve cash and quantities");
+    quote(10000);
+    for (auto &node : value.nodes)
+        node.flags = (node.flags & ~255U) | 14;
+    rich4::GameSession bank(std::move(value), 0);
+    first_landing(bank);
+    require(bank.pending_decision() && bank.pending_decision()->kind == rich4::DecisionKind::bank,
+            "rally regression must land at bank");
+    const auto &options = bank.pending_decision()->options;
+    const auto loan = std::find_if(options.begin(), options.end(), [](const auto &entry) {
+        return entry.value == 3;
+    });
+    require(loan != options.end() &&
+                bank.respond(std::size_t(loan - options.begin()), 800'000'000),
+            "rally regression bank borrowing 800m");
+    auto invested = bank.world();
+    require(invested.players[0].state.bank_balance == 800'000'000 &&
+                invested.players[0].state.loan == 800'000'000,
+            "loan must record equal deposit and liability");
+    require(rich4::stocks::buy_stock(invested, 0, 0, 80'000, true).cost == 800'000'000 &&
+                invested.players[0].state.bank_balance == 0 &&
+                invested.players[0].stocks[0].amount == 755'000,
+            "800m loan funds exactly 80k shares at 10000 without touching cash");
+    invested.stocks[0].float_bits[2] = std::bit_cast<std::uint32_t>(20000.0F);
+    const auto before_sale = rich4::stocks::player_wealth(invested, 0);
+    require(before_sale == 14'310'000'000LL, "rally stock value must exceed 32-bit range");
+    const auto sale = rich4::stocks::sell_stock(invested, 0, 0, 755'000, true);
+    require(sale.proceeds == 15'100'000'000LL &&
+                invested.players[0].state.bank_balance == 15'100'000'000LL &&
+                invested.players[0].state.cash == 10'000'000 &&
+                invested.players[0].state.loan == 800'000'000 &&
+                rich4::stocks::player_wealth(invested, 0) == before_sale,
+            "sale of 15.1b cannot inflate debt or consume cash");
+    auto dat = invested.export_save();
+    rich4::mod::mark_mod_save(dat);
+    const auto extension = rich4::mod::encode_tool_extension(invested, dat);
+    auto restored = rich4::World::from_save(rich4::SaveFile::decode(dat));
+    rich4::mod::apply_tool_extension(restored, dat, extension);
+    require(restored.players[0].state.bank_balance == 15'100'000'000LL &&
+                restored.players[0].state.cash == 10'000'000 &&
+                restored.players[0].state.loan == 800'000'000 &&
+                restored.players[0].stocks[0].amount == 0 &&
+                rich4::stocks::player_wealth(restored, 0) == before_sale,
+            "ECON-3 must preserve 15.1b stock proceeds and original loan");
+
+    // AI/autopilot bank rebalancing used Extended::integer() (32-bit FISTP),
+    // which produces INT32_MIN when the requested cash portion exceeds 2.1b.
+    // A high-balance visit must instead preserve the entire deposit and not
+    // invent new loan debt or negative cash.
+    auto computer = world();
+    computer.players[0].state.controller_flags = 2;
+    computer.players[1].state.controller_flags = 1;
+    computer.players[0].state.cash = 0;
+    computer.players[0].state.bank_balance = 15'100'000'000LL;
+    computer.players[0].status.init_cash_ratio = 50;
+    computer.players[0].status.loan_ratio = 0;
+    for (auto &node : computer.nodes)
+        node.flags = (node.flags & ~255U) | 14;
+    rich4::GameSession ai(std::move(computer), 7);
+    until(ai, [&] { return ai.phase() == rich4::GamePhase::advancing_turn; });
+    const auto &state = ai.world().players[0].state;
+    require(state.cash == 11'325'000'000LL &&
+                state.bank_balance == 3'775'000'000LL &&
+                state.loan == 0,
+            "AI bank rebalance after high stock sale must conserve 15.1b and stay nonnegative");
+}
 void mod_loan_stock_session_roundtrip() {
     auto value = world();
     for (auto &node : value.nodes)
@@ -1749,6 +1834,7 @@ int main() {
         god_spinner_presentation_order();
         native_actions_and_money_spinner();
         god_card_arrival_presentation_order();
+        mod_rally_loan_and_bank_balance_regression();
         mod_loan_stock_session_roundtrip();
         loan_and_free_toll();
         special_financing();

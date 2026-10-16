@@ -3410,8 +3410,15 @@ struct GameSession::Impl {
                     // rounding it to float can change the quarter-ratio boundary.
                     const double difference = static_cast<double>(ratio) - target;
                     if ((total && (difference >= 0.25 || difference <= -0.25)) || player().cash == 0) {
-                        player().cash = (E::from(total) * E::from(target)).integer();
-                        player().bank_balance = subtract32(total, player().cash);
+                        // Loan-funded stock sales routinely leave tens of billions
+                        // on deposit. FISTP to int32 returned INT32_MIN here,
+                        // creating negative cash and an inflated bank balance.
+                        // The x87-compatible 64-bit truncation is identical for
+                        // legacy-sized amounts, but safely handles MOD wealth.
+                        const auto new_cash = (E::from(total) * E::from(target)).integer64();
+                        const auto new_bank = mod::money_sub(total, new_cash);
+                        player().cash = new_cash;
+                        player().bank_balance = new_bank;
                         emit(GameEventKind::bank_transfer, "电脑玩家调整现金与存款");
                         reconcile_financing(true);
                     }

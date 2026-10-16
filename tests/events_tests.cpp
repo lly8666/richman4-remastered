@@ -227,6 +227,10 @@ void money_and_gods() {
     require(apply_fortune_id(world, random, 0, 2, callbacks).supported &&
                 world.players[0].state.loan == 10200 && world.players[0].status.loan_due_date == 123,
             "Fraudulent loan adds rather than replacing outstanding loan");
+    world.players[0].state.loan = 3'000'000'000LL;
+    require(apply_fortune_id(world, random, 0, 2, callbacks).supported &&
+                world.players[0].state.loan == 3'000'010'000LL,
+            "fortune debt event cannot truncate outstanding MOD loan above 2.1b");
     world.players[0].status.days_rejected_by_bank = 250;
     require(apply_fortune_id(world, random, 0, 3, callbacks).supported &&
                 world.players[0].status.days_rejected_by_bank == 24,
@@ -236,6 +240,12 @@ void money_and_gods() {
     require(apply_fortune_id(world, random, 0, 4, callbacks).supported &&
                 std::get<2>(payments[0]) == 214748367,
             "Bank theft uses stored binary32 0.1, not exact decimal10percent or double rounding");
+    world = fixture();
+    world.players[0].state.bank_balance = 15'100'000'000LL;
+    require(apply_news_id(world, random, 23, callbacks).supported &&
+                world.players[0].state.bank_balance == 16'610'000'000LL &&
+                world.players[0].state.cash == 100000,
+            "news bank bonus must credit 1.51b without truncating 15.1b existing balance");
     world = fixture();
     world.header.price_index = 3;
     world.lands[1].economy.owner_code = 1;
