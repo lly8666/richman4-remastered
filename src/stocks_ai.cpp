@@ -413,7 +413,11 @@ std::vector<Trade> sell(World &world, Random &random, std::size_t actor, bool ma
         if (selected == world.stocks.size()) {
             break;
         }
-        const auto quantity = player.stocks[selected].amount;
+        // The MOD holding uses 64 bits, while a single trade stays within the
+        // signed-32-bit quantity API. The configured 1bn cap fits, but a loaded
+        // record can still exceed it; never silently narrow the amount.
+        const auto quantity = static_cast<std::int32_t>(
+            std::min<std::int64_t>(player.stocks[selected].amount, INT32_MAX));
         const auto result = stocks::sell_stock(world, actor, selected, quantity, true);
         trades.push_back({selected, quantity, result.proceeds, result.commercial_owner_changed});
         if (!urgent || !less(number(liquidity(player)), number(player.state.loan) * number(1.1))) {
