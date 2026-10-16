@@ -52,17 +52,18 @@ graphics::Rect pad_key_rect(const PadKey &key) {
     return {key.x - 4, key.y - 3, key.x + 37, key.y + 20};
 }
 
-std::int32_t parse(const std::string &text) {
+std::int64_t parse(const std::string &text) {
     std::int64_t value = 0;
     for (const char digit : text)
         if (digit >= '0' && digit <= '9')
-            value = std::min<std::int64_t>(value * 10 + (digit - '0'), INT32_MAX);
-    return static_cast<std::int32_t>(value);
+            value = value > (INT64_MAX - (digit - '0')) / 10
+                        ? INT64_MAX : value * 10 + (digit - '0');
+    return value;
 }
 
 // Appends a digit like fcn_00452c02 / BK:4770: "0" is replaced, the length is bounded and
 // the value is clamped to the maximum.
-void append_digit(std::string &text, char digit, std::size_t limit, std::int32_t maximum) {
+void append_digit(std::string &text, char digit, std::size_t limit, std::int64_t maximum) {
     if (text == "0")
         text.clear();
     if (text.size() < limit)
@@ -102,7 +103,7 @@ int ids::atm_digit(int digit) {
 // ---------------------------------------------------------------------------------------
 // Number pad (Panel 21 artwork, Panel 22 hit map)
 
-void NumberPad::open(std::int32_t maximum, Done done) {
+void NumberPad::open(std::int64_t maximum, Done done) {
     active_ = true;
     dragging_ = false;
     maximum_ = std::max(0, maximum);
@@ -113,7 +114,7 @@ void NumberPad::open(std::int32_t maximum, Done done) {
     y_ = scale_ > 1 ? 92 : 144;
 }
 
-std::int32_t NumberPad::value() const {
+std::int64_t NumberPad::value() const {
     return std::min(parse(text_), maximum_);
 }
 
@@ -128,7 +129,7 @@ void NumberPad::press(int key) {
         if (text_.empty())
             text_ = "0";
     } else if (character >= '0' && character <= '9')
-        append_digit(text_, character, 9, maximum_);
+        append_digit(text_, character, 19, maximum_);
     else if (character == 'E') {
         const auto result = value();
         active_ = false;
@@ -142,7 +143,7 @@ void NumberPad::press(int key) {
 void NumberPad::set_from_gauge(int x) {
     const int position = std::clamp((x - x_) / scale_ - 10, 0, 107);
     const int step = std::clamp((position * 33 + 53) / 107, 0, 33);
-    text_ = std::to_string(static_cast<std::int32_t>(std::int64_t(maximum_) * step / 33));
+    text_ = std::to_string(static_cast<std::int64_t>((__int128(maximum_) * step) / 33));
 }
 
 void NumberPad::cancel(Host &host) {
@@ -184,7 +185,7 @@ void NumberPad::key(Host &host, char key) {
     press(id);
 }
 
-int NumberPad::next_key_towards(std::int32_t target) const {
+int NumberPad::next_key_towards(std::int64_t target) const {
     const auto wanted = std::to_string(std::clamp(target, 0, maximum_));
     if (text_ == wanted)
         return ids::pad_enter;
@@ -308,9 +309,9 @@ void BankScreen::say(Host &host, std::vector<std::string> lines) {
     ++said_; // AUDIO
 }
 
-std::int32_t BankScreen::atm_maximum(const World &world, std::size_t slot) const {
+std::int64_t BankScreen::atm_maximum(const World &world, std::size_t slot) const {
     const auto &player = world.players.at(slot).state;
-    return mod::display_i32(std::max<std::int64_t>(0, mode_ == 0 ? player.bank_balance : player.cash));
+    return std::max<std::int64_t>(0, mode_ == 0 ? player.bank_balance : player.cash);
 }
 
 void BankScreen::draw(Host &host, const World &world, const GameDecision &decision, NumberPad &pad,
@@ -402,7 +403,7 @@ void BankScreen::atm_key(Host &host, int index, const World &world, const GameDe
         if (atm_text_.empty())
             atm_text_ = "0";
     } else if (character >= '0' && character <= '9')
-        append_digit(atm_text_, character, 10, maximum);
+        append_digit(atm_text_, character, 19, maximum);
 }
 
 void BankScreen::draw_atm(Host &host, const World &world, const GameDecision &decision, NumberPad &pad,
@@ -418,8 +419,7 @@ void BankScreen::draw_atm(Host &host, const World &world, const GameDecision &de
             const auto value = x < 0 ? 0
                                : x >= 204
                                    ? maximum
-                                   : static_cast<std::int32_t>(std::min<std::int64_t>(
-                                         maximum, std::int64_t(x / 6 + 1) * (maximum / 34 + 1)));
+                                   : static_cast<std::int64_t>((__int128(maximum) * (x / 6 + 1)) / 34);
             atm_text_ = std::to_string(value);
         } else
             atm_dragging_ = false;
@@ -442,7 +442,7 @@ void BankScreen::draw_atm(Host &host, const World &world, const GameDecision &de
         // the enlarged number pad instead; Enter on the pad completes the ATM transaction.
         hit(host, ids::atm_keypad, {113, 165, 330, 362}, key_sound,
             [this, &pad, &world_ref, decision, actions, maximum, host_frame = &frame, sound = host.sound] {
-                pad.open(maximum, [this, &world_ref, decision, actions, host_frame, sound](std::int32_t amount) {
+                pad.open(maximum, [this, &world_ref, decision, actions, host_frame, sound](std::int64_t amount) {
                     atm_text_ = std::to_string(amount);
                     if (amount <= 0)
                         return; // cancelled or 0: stay at the ATM
@@ -575,7 +575,7 @@ void BankScreen::draw_desk(Host &host, const World &world, const GameDecision &d
             say(callback, {"請輸入您要貸款\n的金額！"});
             side_panel_ = true;
             side_started_ = frame_pointer->ticks;
-            pad.open(static_cast<std::int32_t>(std::clamp<std::int64_t>(wealth - loan, 0, INT32_MAX)), [this, actions, frame_pointer, sound](std::int32_t amount) {
+            pad.open(static_cast<std::int64_t>(std::clamp<__int128>(__int128(wealth) - loan, 0, INT32_MAX)), [this, actions, frame_pointer, sound](std::int64_t amount) {
                 Host done{*frame_pointer, sound, {}};
                 if (amount <= 0) {
                     lines_.clear();
@@ -596,7 +596,7 @@ void BankScreen::draw_desk(Host &host, const World &world, const GameDecision &d
         side_panel_ = true;
         if (!pad.active())
             side_started_ = frame_pointer->ticks;
-        pad.open(static_cast<std::int32_t>(std::clamp<std::int64_t>(loan, 0, INT32_MAX)), [this, &pad, actions, loan, available, frame_pointer, sound](std::int32_t amount) {
+        pad.open(std::max<std::int64_t>(0, loan), [this, &pad, actions, loan, available, frame_pointer, sound](std::int64_t amount) {
             Host done{*frame_pointer, sound, {}};
             if (amount <= 0) {
                 lines_.clear();
@@ -606,7 +606,7 @@ void BankScreen::draw_desk(Host &host, const World &world, const GameDecision &d
             if (amount > available) {
                 say(done, {"很抱歉！\n您的現金不足。"});
                 // Re-prompt, as BK:2839 does.
-                pad.open(static_cast<std::int32_t>(std::clamp<std::int64_t>(loan, 0, INT32_MAX)), [this, actions, available, frame_pointer, sound](std::int32_t retry) {
+                pad.open(std::max<std::int64_t>(0, loan), [this, actions, available, frame_pointer, sound](std::int64_t retry) {
                     Host again{*frame_pointer, sound, {}};
                     if (retry > 0 && retry <= available && actions.respond(4, retry))
                         say(again, {"您的還款手續\n已完成。"});
@@ -677,7 +677,7 @@ void BankScreen::draw_director(Host &host, const World &world, const GameDecisio
                 return;
             }
             say(callback, {"請輸入您要\n週轉的金額～"});
-            pad.open(static_cast<std::int32_t>(std::clamp<std::int64_t>(total - special, 0, INT32_MAX)), [this, actions](std::int32_t amount) {
+            pad.open(static_cast<std::int64_t>(std::clamp<__int128>(__int128(total) - special, 0, INT32_MAX)), [this, actions](std::int64_t amount) {
                 if (amount > 0 && actions.respond(5, amount)) {
                     stage_ = Stage::desk; // A transaction closes the office and the desk.
                     actions.respond(0, 0);
@@ -694,7 +694,7 @@ void BankScreen::draw_director(Host &host, const World &world, const GameDecisio
                 return;
             }
             say(callback, {"請輸入您預備\n還款的金額～"});
-            pad.open(static_cast<std::int32_t>(std::clamp<std::int64_t>(special, 0, INT32_MAX)), [this, actions, available, frame_pointer, sound](std::int32_t amount) {
+            pad.open(std::min<std::int64_t>(std::max<std::int64_t>(special, 0), INT32_MAX)), [this, actions, available, frame_pointer, sound](std::int64_t amount) {
                 Host done{*frame_pointer, sound, {}};
                 if (amount <= 0) {
                     lines_.clear();
@@ -736,7 +736,7 @@ void draw_primary_stock(Host &host, const World &world, const GameDecision &deci
              std::to_string(decision.max_amount) + "股",
          319, top + 44, 4, black_text);
     if (!pad.active())
-        pad.open(decision.max_amount, [actions](std::int32_t amount) {
+        pad.open(decision.max_amount, [actions](std::int64_t amount) {
             if (amount > 0)
                 actions.respond(1, amount);
             else

@@ -4157,7 +4157,7 @@ bool GameSession::close_trading() {
     impl_->run_rule([this] { impl_->reconcile_financing(false); }, true, false);
     return true;
 }
-bool GameSession::respond(std::size_t option, std::int32_t amount) {
+bool GameSession::respond(std::size_t option, std::int64_t amount) {
     if (impl_->phase != GamePhase::awaiting_decision || !impl_->decision ||
         option >= impl_->decision->options.size())
         return false;
@@ -4177,7 +4177,7 @@ bool GameSession::respond(std::size_t option, std::int32_t amount) {
         if (decision.kind == DecisionKind::primary_stock && value) {
             if (amount <= 0 || amount > decision.max_amount)
                 return false;
-            value = amount;
+            value = static_cast<std::int32_t>(amount);
         }
         impl_->event_choices[impl_->pending_choice_key] = value;
         impl_->decision.reset();
@@ -4218,7 +4218,9 @@ bool GameSession::respond(std::size_t option, std::int32_t amount) {
         if (amount <= 0)
             return false;
         if (value == 3) {
-            const bool result = impl_->borrow(amount);
+            if (amount > INT32_MAX)
+                return false; // Legacy loan application is still single-offer signed32.
+            const bool result = impl_->borrow(static_cast<std::int32_t>(amount));
             if (result)
                 impl_->open_bank(impl_->resume_movement);
             return result;
@@ -4230,7 +4232,9 @@ bool GameSession::respond(std::size_t option, std::int32_t amount) {
             return result;
         }
         if (value == 5 || value == 6) {
-            const bool result = impl_->change_financing(amount, value == 5);
+            if (amount > INT32_MAX)
+                return false; // Legacy director financing is single-offer signed32.
+            const bool result = impl_->change_financing(static_cast<std::int32_t>(amount), value == 5);
             if (result)
                 impl_->open_bank(impl_->resume_movement);
             return result;

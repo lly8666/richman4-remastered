@@ -346,7 +346,7 @@ class GameSession {
     bool cancel_offer(std::size_t index);
     bool buy_offer(std::size_t seller, std::size_t index);
     bool close_trading();
-    bool respond(std::size_t option, std::int32_t amount = 0);
+    bool respond(std::size_t option, std::int64_t amount = 0);
     // Original Options "動畫過程" (RICH4.CFG[1]). Off (the default, and the headless replay
     // harness) keeps the closed mode: a human on a mini-game tile gets rand()%20+50 points like a
     // computer. On: a human gets a DecisionKind::mini_game decision instead and no random number

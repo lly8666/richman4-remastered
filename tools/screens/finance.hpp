@@ -45,8 +45,8 @@ inline constexpr int stock_page = 434, stock_buy = 430, stock_sell = 431, stock_
 // nothing clickable underneath.
 class NumberPad {
   public:
-    using Done = std::function<void(std::int32_t)>;
-    void open(std::int32_t maximum, Done done);
+    using Done = std::function<void(std::int64_t)>;
+    void open(std::int64_t maximum, Done done);
     // Touch screens: draw the pad's original artwork at an integer scale (2 on phones) so each
     // key is a finger-sized target. Desktop keeps the original 1x geometry.
     void set_scale(int scale) {
@@ -65,8 +65,8 @@ class NumberPad {
     [[nodiscard]] bool active() const noexcept {
         return active_;
     }
-    [[nodiscard]] std::int32_t value() const;
-    [[nodiscard]] std::int32_t maximum() const noexcept {
+    [[nodiscard]] std::int64_t value() const;
+    [[nodiscard]] std::int64_t maximum() const noexcept {
         return maximum_;
     }
     [[nodiscard]] const std::string &digits() const noexcept {
@@ -77,14 +77,14 @@ class NumberPad {
     // Keyboard: '0'..'9', 'M' (MAX), 'C' (clear), '\b', '\r' (Enter), 'H' (gauge middle).
     void key(Host &host, char key);
     // Replay helper: the id of the next key that moves the display towards target (Enter when done).
-    [[nodiscard]] int next_key_towards(std::int32_t target) const;
+    [[nodiscard]] int next_key_towards(std::int64_t target) const;
 
   private:
     void press(int key);
     void set_from_gauge(int x);
     bool active_ = false, dragging_ = false;
     int x_ = 256, y_ = 144, scale_ = 1;
-    std::int32_t maximum_ = 0;
+    std::int64_t maximum_ = 0;
     std::string text_ = "0";
     Done done_;
 };
@@ -92,7 +92,7 @@ class NumberPad {
 // What the bank screens need from the application: answer the pending decision with the
 // option whose value is `value` (see BankScreen) and an amount.
 struct BankActions {
-    std::function<bool(std::int32_t value, std::int32_t amount)> respond;
+    std::function<bool(std::int32_t value, std::int64_t amount)> respond;
 };
 
 // DecisionKind::bank: ATM (Panel 24) first, then on a stop the loan desk (Panel 23) with the
@@ -135,7 +135,7 @@ class BankScreen {
                  const BankActions &actions);
     void leave_atm(Host &host, const GameDecision &decision, const BankActions &actions);
     void say(Host &host, std::vector<std::string> lines);
-    std::int32_t atm_maximum(const World &world, std::size_t slot) const;
+    std::int64_t atm_maximum(const World &world, std::size_t slot) const;
 
     Stage stage_ = Stage::atm;
     bool started_ = false, atm_dragging_ = false, side_panel_ = false;

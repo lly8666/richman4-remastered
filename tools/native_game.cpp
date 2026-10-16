@@ -796,7 +796,7 @@ class Application {
                    : Screen::menu;
     }
     // Answers the pending decision with the option whose value is `value`.
-    bool respond_value(std::int32_t value, std::int32_t amount) {
+    bool respond_value(std::int32_t value, std::int64_t amount) {
         const auto &decision = session_->pending_decision();
         if (!decision)
             return false;
@@ -810,7 +810,7 @@ class Application {
         return false;
     }
     screens::BankActions bank_actions() {
-        return {[this](std::int32_t value, std::int32_t amount) { return respond_value(value, amount); }};
+        return {[this](std::int32_t value, std::int64_t amount) { return respond_value(value, amount); }};
     }
     screens::StockActions stock_actions() {
         return {[this](std::size_t stock, std::int32_t quantity) {
@@ -3395,7 +3395,7 @@ class Application {
     unsigned selected_character_ = 10, selected_map_ = 0, selected_stage_ = 0, rotation_ = 0, speed_ = 1;
     bool running_ = true, bank_done_for_visit_ = false, shop_done_for_visit_ = false,
          sound_effects_ = true;
-    std::int32_t bank_amount_ = 1000;
+    std::int64_t bank_amount_ = 1000;
     std::int32_t amount_limit_ = 0;
     std::int32_t *editing_amount_ = nullptr;
     std::string amount_text_;
