@@ -1474,7 +1474,7 @@ struct GameSession::Impl {
                                               "认购原始股：每股" + std::to_string(price) + "元，最多" +
                                                   std::to_string(maximum) + "股",
                                               {{"認購", 1}, {"放棄", 0}},
-                                              maximum},
+                                              static_cast<std::int32_t>(maximum)}, // <= 10 million, verified bound
                                  key};
         } else {
             const auto reserve = multiply32(static_cast<std::int32_t>(world.header.initial_fund * 0.3),
