@@ -3044,6 +3044,15 @@ struct GameSession::Impl {
             pending_continuation = {};
             event_choices.clear();
             unsupported(missing.message, finish_after ? GamePhase::advancing_turn : GamePhase::human_ready);
+        } catch (...) {
+            // Overflow or malformed wide-money computations must never leave
+            // a partly completed multi-target rule (taxes, dividends, loans,
+            // or card events) in the saveable World after the exception.
+            restore();
+            pending_continuation = {};
+            event_choices.clear();
+            choice_random_states.clear();
+            throw;
         }
         if (completed && on_success)
             on_success();
