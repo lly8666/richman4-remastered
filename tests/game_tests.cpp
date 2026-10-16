@@ -6,6 +6,7 @@
 #include "rich4/game.hpp"
 #include "rich4/mod_save.hpp"
 #include "rich4/mod_rules.hpp"
+#include "rich4/mod_money_format.hpp"
 #include "rich4/gods.hpp"
 #include "rich4/holidays.hpp"
 #include "rich4/random.hpp"
@@ -564,6 +565,24 @@ void mod_frame_card_event_preview_order() {
                 "framing decision should replay and settle the chosen fortune once");
     }
     require(found, "fixture must reach an active framing prompt");
+}
+void mod_compact_money_format() {
+    using rich4::mod::compact_money;
+    require(compact_money(42) == "$42" &&
+                compact_money(-123456) == "$-123,456",
+            "small amounts must remain exact and signed");
+    require(compact_money(45'000'000) == "$4500万" &&
+                compact_money(450'000'000) == "$4.5亿" &&
+                compact_money(15'100'000'000LL) == "$151亿",
+            "financial amount should fit historic sidebar without spilling");
+    require(compact_money(15'100'000'123LL) == "$≈151亿" &&
+                compact_money(-8'000'000'000LL, false) == "-80亿",
+            "non-exact compact values should be labelled approximate");
+    require(compact_money(INT64_MAX) == "$≈922.33京" &&
+                compact_money(INT64_MIN) == "$≈-922.33京",
+            "signed64 extrema must fit without negation overflow");
+    require(rich4::mod::grouped_digits(15'100'000'000LL) == "15,100,000,000",
+            "keypad edit mode must retain full exact bank amount");
 }
 void mod_64bit_bank_deposit_and_withdraw() {
     auto v = world();
@@ -1999,6 +2018,7 @@ int main() {
         property_and_rent();
         alliance_rent();
         mod_frame_card_event_preview_order();
+        mod_compact_money_format();
         mod_64bit_bank_deposit_and_withdraw();
         bank_and_failure();
         thirty_days_and_timing();
