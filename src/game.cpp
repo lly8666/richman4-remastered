@@ -3281,7 +3281,7 @@ struct GameSession::Impl {
         if (amount <= 0 || amount > player().loan ||
             static_cast<std::int64_t>(player().cash) + player().bank_balance < amount)
             return false;
-        const auto from_bank = std::min(std::max(player().bank_balance, 0), amount);
+        const auto from_bank = std::min(std::max(player().bank_balance, std::int64_t{0}), amount);
         player().bank_balance = subtract32(player().bank_balance, from_bank);
         player().cash = subtract32(player().cash, amount - from_bank);
         player().loan = subtract32(player().loan, amount);
