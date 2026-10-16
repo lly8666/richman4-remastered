@@ -315,6 +315,16 @@ void fresh_world() {
     const auto reloaded = World::from_save(SaveFile::decode(bytes));
     require(reloaded.export_save() == bytes && !reloaded.has_initial_random_state(),
             "Fresh state is readable in legacy save layout; old format does not claim saved PRNG state");
+    // MOD expands the original 10000-share universe by 10^4 and permits
+    // 900 million start capital without introducing 32-bit negative balances.
+    options.initial_fund = 900000000;
+    world = World::from_map_resource(map, options);
+    require(world.header.initial_fund == 900000000 &&
+                world.players[0].state.cash + world.players[0].state.bank_balance == 900000000 &&
+                world.stocks[0].shares_available == 100000000 &&
+                world.stocks[0].shares_available < UINT32_MAX,
+            "MOD 900m capital and 100m share supply must initialize exactly");
+    options.initial_fund = 200000;
     options.players.resize(1);
     options.players[0].start_node = 2;
     world = World::from_map_resource(map, options);
