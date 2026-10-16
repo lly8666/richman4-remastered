@@ -129,6 +129,55 @@ void mod_tool_save_and_fixed_inflation() {
                 game.world().header.price_index == 1,
             "MOD must reset an imported 99x price index before the first turn");
 }
+// MOD-wide DAT companion must restore every 64-bit balance, holding and
+// 32-bit share quota without leaking any truncated preview or stale state.
+void mod_wide_economy_save_roundtrip() {
+    auto original = world();
+    auto &account = original.players[0];
+    account.state.cash = INT64_C(90000000000000);
+    account.state.bank_balance = INT64_C(50000000000000);
+    account.state.loan = INT64_C(3000000000);
+    account.state.special_finance = INT64_C(4000000000);
+    account.state.tool_amounts[8] = 999;
+    account.stocks[0].amount = 50000000;
+    original.stocks[0].shares_available = 50000000;
+    original.stocks[0].flags_10 = 30000000;
+    original.commercials[1].shares_remaining = 10000000;
+    original.public_fund = INT64_C(80000000000000);
+    const auto dat = original.export_save();
+    const auto extension = rich4::mod::encode_tool_extension(original, dat);
+    auto restored = rich4::World::from_save(rich4::SaveFile::decode(dat));
+    require(restored.players[0].state.cash == INT32_MAX &&
+                restored.stocks[0].shares_available == UINT16_MAX &&
+                restored.players[0].state.tool_amounts[8] == 255,
+            "Legacy DAT contains intentionally saturated previews, not wrapped high values");
+    rich4::mod::apply_tool_extension(restored, dat, extension);
+    const auto &player = restored.players[0];
+    require(player.state.cash == account.state.cash &&
+                player.state.bank_balance == account.state.bank_balance &&
+                player.state.loan == account.state.loan &&
+                player.state.special_finance == account.state.special_finance &&
+                player.state.tool_amounts[8] == 999 &&
+                player.stocks[0].amount == account.stocks[0].amount &&
+                restored.stocks[0].shares_available == 50000000 &&
+                restored.stocks[0].flags_10 == 30000000 &&
+                restored.commercials[1].shares_remaining == 10000000 &&
+                restored.public_fund == original.public_fund,
+            "MOD financial sidecar restores ALL multi-trillion values without truncation");
+    const auto snapshot = restored;
+    auto stale = dat;
+    stale.at(10) ^= 1;
+    bool failed = false;
+    try {
+        rich4::mod::apply_tool_extension(restored, stale, extension);
+    } catch (const rich4::SaveError &) {
+        failed = true;
+    }
+    require(failed && restored.players[0].state.cash == snapshot.players[0].state.cash &&
+                restored.stocks[0].shares_available == snapshot.stocks[0].shares_available,
+            "MOD DAT checksum mismatch must not partially modify loaded financial state");
+}
+
 void dice_and_paths() {
     rich4::GameSession game(world(), 1);
     rich4::Random expected(1);
@@ -1563,6 +1612,7 @@ int main() {
     try {
         landing_pauses();
         mod_tool_save_and_fixed_inflation();
+        mod_wide_economy_save_roundtrip();
         dice_and_paths();
         dice_effect_is_presentation_only();
         parachute_marks_a_spawned_player();
