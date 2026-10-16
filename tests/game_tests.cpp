@@ -1262,6 +1262,14 @@ void mod_legacy_econ3_sidecar_compatibility() {
                 restored.commercials[1].funds_change == -600,
             "ECON-3 compatibility must retain original DAT enterprise fields");
 }
+void mod_money_sub_boundary_regression() {
+    require(rich4::mod::money_sub(INT64_MIN, INT64_MIN) == 0,
+            "signed64 subtraction must accept INT64_MIN without negation UB");
+    bool overflow = false;
+    try { (void)rich4::mod::money_sub(0, INT64_MIN); }
+    catch (const std::overflow_error &) { overflow = true; }
+    require(overflow, "signed64 subtract overflow must reject instead of wrapping");
+}
 void mod_enterprise_ledger_save_regression() {
     auto w = world();
     w.commercials[1].funds = 15'100'000'000LL;
@@ -1931,6 +1939,7 @@ int main() {
         native_actions_and_money_spinner();
         god_card_arrival_presentation_order();
         mod_legacy_econ3_sidecar_compatibility();
+        mod_money_sub_boundary_regression();
         mod_enterprise_ledger_save_regression();
         mod_rally_loan_and_bank_balance_regression();
         mod_loan_stock_session_roundtrip();

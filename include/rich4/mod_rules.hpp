@@ -24,7 +24,11 @@ inline std::int64_t money_add(std::int64_t a, std::int64_t b) {
     return static_cast<std::int64_t>(result);
 }
 inline std::int64_t money_sub(std::int64_t a, std::int64_t b) {
-    return money_add(a, -b);
+    // Negating INT64_MIN is undefined before money_add can check it.
+    const auto result = __int128(a) - b;
+    if (result > INT64_MAX || result < INT64_MIN)
+        throw std::overflow_error("MOD financial amount exceeds signed 64-bit range");
+    return static_cast<std::int64_t>(result);
 }
 inline std::int32_t display_i32(std::int64_t a) noexcept {
     return static_cast<std::int32_t>(a < INT32_MIN ? INT32_MIN : a > INT32_MAX ? INT32_MAX : a);
