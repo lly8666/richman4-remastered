@@ -289,12 +289,12 @@ bool owns_bank(const World &world, std::size_t slot) {
     return code > 6000 && code < 8000 && std::size_t(code - 6000) < world.commercials.size() &&
            world.commercials[code - 6000].owner_code == slot + 1;
 }
-std::int32_t others_deposits(const World &world, std::size_t slot) {
+std::int64_t others_deposits(const World &world, std::size_t slot) {
     std::int64_t total = 0;
     for (std::size_t i = 0; i < world.players.size(); ++i)
         if (i != slot)
             total += world.players[i].state.bank_balance;
-    return static_cast<std::int32_t>(std::clamp<std::int64_t>(total, INT32_MIN, INT32_MAX));
+    return total; // MOD: keep the full bank balance rather than clipping to INT32_MAX.
 }
 bool desk_available(const GameDecision &decision) {
     return has_option(decision, 3) || has_option(decision, 4) || has_option(decision, 5) || has_option(decision, 6);
@@ -574,7 +574,7 @@ void BankScreen::draw_desk(Host &host, const World &world, const GameDecision &d
             say(callback, {"請輸入您要貸款\n的金額！"});
             side_panel_ = true;
             side_started_ = frame_pointer->ticks;
-            pad.open(wealth - loan, [this, actions, frame_pointer, sound](std::int32_t amount) {
+            pad.open(static_cast<std::int32_t>(std::clamp<std::int64_t>(wealth - loan, 0, INT32_MAX)), [this, actions, frame_pointer, sound](std::int32_t amount) {
                 Host done{*frame_pointer, sound, {}};
                 if (amount <= 0) {
                     lines_.clear();
@@ -595,7 +595,7 @@ void BankScreen::draw_desk(Host &host, const World &world, const GameDecision &d
         side_panel_ = true;
         if (!pad.active())
             side_started_ = frame_pointer->ticks;
-        pad.open(loan, [this, &pad, actions, loan, available, frame_pointer, sound](std::int32_t amount) {
+        pad.open(static_cast<std::int32_t>(std::clamp<std::int64_t>(loan, 0, INT32_MAX)), [this, &pad, actions, loan, available, frame_pointer, sound](std::int32_t amount) {
             Host done{*frame_pointer, sound, {}};
             if (amount <= 0) {
                 lines_.clear();
@@ -605,7 +605,7 @@ void BankScreen::draw_desk(Host &host, const World &world, const GameDecision &d
             if (amount > available) {
                 say(done, {"很抱歉！\n您的現金不足。"});
                 // Re-prompt, as BK:2839 does.
-                pad.open(loan, [this, actions, available, frame_pointer, sound](std::int32_t retry) {
+                pad.open(static_cast<std::int32_t>(std::clamp<std::int64_t>(loan, 0, INT32_MAX)), [this, actions, available, frame_pointer, sound](std::int32_t retry) {
                     Host again{*frame_pointer, sound, {}};
                     if (retry > 0 && retry <= available && actions.respond(4, retry))
                         say(again, {"您的還款手續\n已完成。"});
@@ -676,7 +676,7 @@ void BankScreen::draw_director(Host &host, const World &world, const GameDecisio
                 return;
             }
             say(callback, {"請輸入您要\n週轉的金額～"});
-            pad.open(total - special, [this, actions](std::int32_t amount) {
+            pad.open(static_cast<std::int32_t>(std::clamp<std::int64_t>(total - special, 0, INT32_MAX)), [this, actions](std::int32_t amount) {
                 if (amount > 0 && actions.respond(5, amount)) {
                     stage_ = Stage::desk; // A transaction closes the office and the desk.
                     actions.respond(0, 0);
@@ -693,7 +693,7 @@ void BankScreen::draw_director(Host &host, const World &world, const GameDecisio
                 return;
             }
             say(callback, {"請輸入您預備\n還款的金額～"});
-            pad.open(special, [this, actions, available, frame_pointer, sound](std::int32_t amount) {
+            pad.open(static_cast<std::int32_t>(std::clamp<std::int64_t>(special, 0, INT32_MAX)), [this, actions, available, frame_pointer, sound](std::int32_t amount) {
                 Host done{*frame_pointer, sound, {}};
                 if (amount <= 0) {
                     lines_.clear();
