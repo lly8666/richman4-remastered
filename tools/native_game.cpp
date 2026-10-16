@@ -1128,7 +1128,7 @@ class Application {
     };
     bool presenting() const {
         return hold_ms_ > 0 || SDL_GetTicks() < stock_card_hold_until_ || intro_.active() || main_screen_.dice_busy() ||
-               effects_.active() || messages_.active() ||
+               effects_.active() || messages_.active() || items_.popup_active() ||
                spinners_.active() || monthly_.active() || auction_room_.sold_active() ||
                items_.magic_cast_active(); // MONTHLY / AUCTION / MAGIC full-screen sequences
     }
@@ -1158,6 +1158,10 @@ class Application {
         if (event.kind == GameEventKind::turn_started)
             presented_player_ = event.player;
         main_screen_.on_event(event, *session_, artwork_);
+        // Never spawn card art for future queue entries while an earlier
+        // movie/bubble still plays. This was observed as the final outcome
+        // appearing before the related event animation.
+        items_.observe(event, session_->world());
         if (auto item = messages::from_event(event, session_->world()))
             messages_.push(std::move(*item)); // Voices play when their bubble appears.
         if (event.message == "拍卖成交" || event.message == "地产拍卖流拍") // AUDIO: auction result
@@ -1213,7 +1217,6 @@ class Application {
                 ++dice_by_player_[event.player];
             if (event.kind == GameEventKind::unsupported_event)
                 unsupported_.push_back(event.message);
-            items_.observe(event, session_->world());
             if (event.kind == GameEventKind::notice && event.message.starts_with("使用")) {
                 for (unsigned i = 0; i < services::card_names.size(); ++i)
                     if (event.message == "使用" + std::string(services::card_names[i])) {
@@ -1379,7 +1382,9 @@ class Application {
         std::string overlay_key;
         if (screen_ == Screen::game && session_ && monthly_.active()) // MONTHLY: first frames of each screen
             overlay_key = std::string("monthly-") + monthly_.shot();
-        if (screen_ == Screen::game && session_ && messages_.active()) {
+        if (screen_ == Screen::game && session_ && messages_.active() && !items_.popup_active()) {
+            // Popup art is the first part of the card animation. Do not start
+            // an outcome voice/box underneath it before the card is shown.
             const auto kind = messages_.current()->kind;
             if (messages_.draw(frame_)) {
                 static constexpr std::array<const char *, 5> kinds{"bubble", "box", "news", "fortune", "god"};
