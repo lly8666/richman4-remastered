@@ -141,10 +141,10 @@ std::int32_t company_buy_score(const World &world, std::size_t actor, std::size_
         ++score;
         if (company.owner_code && company.owner_code != actor + 1) {
             const auto owner_quantity = world.players.at(company.owner_code - 1).stocks[index].amount;
-            if (add(add(stock.shares_available, holding.amount), company.shares_remaining) > owner_quantity) {
+            if (std::int64_t(stock.shares_available) + holding.amount + company.shares_remaining > owner_quantity) {
                 ++score;
             }
-            if (add(stock.flags_10, holding.amount) > owner_quantity) {
+            if (std::int64_t(stock.flags_10) + holding.amount > owner_quantity) {
                 score += 2;
             }
         }
@@ -202,10 +202,9 @@ std::int32_t company_sell_score(const World &world, std::size_t actor, std::size
     const auto cost = number(basis(holding));
     const auto valuation = number(company_unit_value(company));
     const auto profit = number(company_average_profit(world, company));
-    std::int32_t total_quantity = 0;
-    for (const auto &player : world.players) {
-        total_quantity = add(total_quantity, player.stocks[index].amount);
-    }
+    std::int64_t total_quantity = 0;
+    for (const auto &player : world.players)
+        total_quantity = mod::money_add(total_quantity, player.stocks[index].amount);
     // Original DE F1 is FDIVRP: total / own, not the intuitive ownership fraction.
     const auto share = (number(total_quantity) / number(holding.amount)).single();
     const bool owns_company = company.owner_code == actor + 1;
@@ -226,7 +225,7 @@ std::int32_t company_sell_score(const World &world, std::size_t actor, std::size
     }
     if (company.owner_code && !owns_company) {
         const auto owner_quantity = world.players.at(company.owner_code - 1).stocks[index].amount;
-        if (add(add(holding.amount, stock.shares_available), company.shares_remaining) < owner_quantity &&
+        if (holding.amount + std::int64_t(stock.shares_available) + company.shares_remaining < owner_quantity &&
             company.funds <= 0 && !less(price, cost * number(1.5))) {
             ++score;
         }
