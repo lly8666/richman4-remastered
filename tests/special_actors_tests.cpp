@@ -175,6 +175,21 @@ void encounters() {
     require(interact(world, random, 4, false, callbacks).stop_movement,
             "Second home encounter returns special actor and stops turn");
 }
+void mod_wide_special_actor_payments() {
+    auto w = fixture();
+    Random random(42);
+    w.nodes[1].flags = 0x200 | 14;
+    w.players[1].state.bank_balance = 50'000'000'000LL;
+    std::int64_t largest = 0;
+    Callbacks callbacks;
+    callbacks.pay = [&](auto payer, auto recipient, std::int64_t amount, auto) {
+        if (payer == 1 && recipient == 0)
+            largest = amount;
+    };
+    const auto result = interact(w, random, 5, false, callbacks);
+    require(result.supported && largest > 9'000'000'000LL,
+            "special bank robber must request full 20% of 50b deposit in signed64");
+}
 void finance_and_cards() {
     auto world = fixture();
     Random random(42), expected(42);
@@ -372,6 +387,7 @@ int main(int argc, char **argv) {
     try {
         routes_and_turns();
         encounters();
+        mod_wide_special_actor_payments();
         finance_and_cards();
         if (argc == 3 && std::string(argv[1]) == "--oracle")
             oracle(argv[2]);

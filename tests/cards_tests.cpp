@@ -94,6 +94,24 @@ void target_filters_and_passive() {
                 w.players[0].state.cards[0] == 11,
             "invalid target preserves hand");
 }
+void mod_wide_equalizing_cards() {
+    auto w = fixture();
+    w.players[0].state.cash = 10'000'000'000LL;
+    w.players[1].state.cash = 30'000'000'000LL;
+    w.players[2].state.cash = 50'000'000'000LL;
+    w.players[3].state.cash = 70'000'000'000LL;
+    require(play(w, 1).used(), "cash equalizer should succeed above signed32");
+    for (const auto &player : w.players)
+        require(player.state.cash == 40'000'000'000LL,
+                "rich equalizer must conserve 160b cash across four players");
+    w = fixture();
+    w.players[0].state.cash = 15'100'000'000LL;
+    w.players[1].state.cash = 44'900'000'000LL;
+    require(play(w, 2, CardTarget{CardTargetKind::actor, 1}).used() &&
+                w.players[0].state.cash == 30'000'000'000LL &&
+                w.players[1].state.cash == 30'000'000'000LL,
+            "poor equalizer must not wrap 60b cash sum into signed32");
+}
 void money_and_ownership() {
     auto w = fixture();
     w.players[0].state.cash = 100;
@@ -361,6 +379,7 @@ void speech_order() {
 int main() {
     try {
         target_filters_and_passive();
+        mod_wide_equalizing_cards();
         money_and_ownership();
         buildings_and_street_effects();
         statuses_and_defense();

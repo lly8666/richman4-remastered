@@ -219,6 +219,29 @@ void magic_selection_and_effects() {
             "equipped car included at full price");
 }
 
+void mod_wide_enterprise_shop_income() {
+    auto w = sample();
+    w.commercials[1].funds = 15'100'000'000LL;
+    w.commercials[1].funds_change = 9'000'000'000LL;
+    services::Shop shop;
+    shop.revenue = 2'500'000'000LL;
+    services::close_shop(w, shop, 6001);
+    require(shop.closed &&
+                w.commercials[1].funds == 17'600'000'000LL &&
+                w.commercials[1].funds_change == 11'500'000'000LL,
+            "wide shop close must credit both enterprise ledgers without wrap");
+    w = sample();
+    w.commercials[1].funds = INT64_MAX - 30;
+    w.commercials[1].funds_change = 900;
+    services::Shop rejected;
+    rejected.revenue = 100;
+    bool overflow = false;
+    try { services::close_shop(w, rejected, 6001); }
+    catch (const std::overflow_error &) { overflow = true; }
+    require(overflow && !rejected.closed && w.commercials[1].funds == INT64_MAX - 30 &&
+                w.commercials[1].funds_change == 900,
+            "shop credit overflow must not partly credit company funds or close shop");
+}
 void mod_magic_64bit_money() {
     auto w = sample();
     w.players[0].state.cash = 3'000'000'000'000LL;
@@ -267,6 +290,7 @@ int main() {
         mod_restocked_cards();
         computer_policy();
         magic_selection_and_effects();
+        mod_wide_enterprise_shop_income();
         mod_magic_64bit_money();
         std::cout << "shop inventories, pricing, AI, magic targeting/effects passed\n";
     } catch (const std::exception &e) {
