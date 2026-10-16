@@ -162,8 +162,8 @@ struct Commercial {
     std::uint16_t sprite_index = 0;
     std::uint16_t toll_fee = 0;
     std::uint8_t stock_index = 0;
-    std::int32_t funds = 0;                          // +0x28, company balance.
-    std::int32_t funds_change = 0;                   // +0x2c, original running cash-flow counter.
+    std::int64_t funds = 0;                          // +0x28, 32-bit legacy DAT preview.
+    std::int64_t funds_change = 0;                   // +0x2c, 32-bit DAT preview; ECON-4 exact.
     std::int64_t shares_remaining = 0;               // +0x30.
     std::array<std::uint8_t, 4> shareholder_order{}; // +0x1c, stable original rank order.
     std::int32_t valuation = 0;                      // +0x24.

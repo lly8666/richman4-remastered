@@ -94,7 +94,7 @@ float history_average(const World &world, std::size_t stock, int periods) {
 float company_average_profit(const World &world, const Commercial &company) {
     const auto months = static_cast<std::int64_t>(world.month_counter);
     const auto value =
-        months ? static_cast<std::int32_t>(company.funds_change / months) : company.funds_change;
+        months ? company.funds_change / months : company.funds_change;
     return number(value).single();
 }
 float company_unit_value(const Commercial &company) {

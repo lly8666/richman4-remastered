@@ -30,7 +30,7 @@ std::uint8_t receive_random_card(World &, Random &, std::size_t player);
 std::uint8_t receive_random_tool(World &, Random &, std::size_t player);
 struct Shop {
     std::vector<std::uint8_t> cards, tools;
-    std::int32_t revenue = 0;
+    std::int64_t revenue = 0;
     std::uint8_t gift_card = 0, gift_tool = 0;
     bool closed = false;
 };

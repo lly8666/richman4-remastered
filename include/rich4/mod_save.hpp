@@ -49,7 +49,7 @@ inline std::uint16_t legacy_shares(std::uint64_t amount) noexcept {
 
 inline std::string encode_tool_extension(const World &world, std::span<const std::uint8_t> dat) {
     std::ostringstream out;
-    out << "RICH4-MOD-ECON-3 " << dat.size() << ' ' << dat_hash(dat) << ' '
+    out << "RICH4-MOD-ECON-4 " << dat.size() << ' ' << dat_hash(dat) << ' '
         << world.players.size() << ' ' << world.stocks.size() << ' '
         << world.commercials.size() << '\n';
     for (const auto &player : world.players) {
@@ -84,7 +84,7 @@ inline std::string encode_tool_extension(const World &world, std::span<const std
     for (const auto &company : world.commercials) {
         if (company.shares_remaining < 0 || company.shares_remaining > max_market_shares)
             throw SaveError("MOD company shares exceed maximum");
-        out << company.shares_remaining << ' ';
+        out << company.shares_remaining << ' ' << company.funds << ' ' << company.funds_change << ' ';
     }
     out << '\n' << world.public_fund << '\n';
     return out.str();
@@ -128,7 +128,8 @@ inline void apply_tool_extension(World &world, std::span<const std::uint8_t> dat
     }
     std::uint64_t bytes = 0, hash = 0;
     std::size_t players = 0, stocks = 0, companies = 0;
-    const bool card_stacks = magic == "RICH4-MOD-ECON-3";
+    const bool company_ledger = magic == "RICH4-MOD-ECON-4";
+    const bool card_stacks = magic == "RICH4-MOD-ECON-3" || company_ledger;
     if ((magic != "RICH4-MOD-ECON-2" && !card_stacks) ||
         !(in >> bytes >> hash >> players >> stocks >> companies) ||
         bytes != dat.size() || hash != dat_hash(dat) ||
@@ -201,6 +202,15 @@ inline void apply_tool_extension(World &world, std::span<const std::uint8_t> dat
             world.commercials[i].shares_remaining != legacy_money(remaining))
             throw SaveError("MOD sidecar company share supply disagrees with DAT");
         candidate.commercials[i].shares_remaining = remaining;
+        if (company_ledger) {
+            std::int64_t funds = 0, change = 0;
+            if (!(in >> funds >> change) ||
+                world.commercials[i].funds != legacy_money(funds) ||
+                world.commercials[i].funds_change != legacy_money(change))
+                throw SaveError("MOD sidecar company funds disagree with DAT");
+            candidate.commercials[i].funds = funds;
+            candidate.commercials[i].funds_change = change;
+        }
     }
     std::int64_t fund = 0;
     if (!(in >> fund) || world.public_fund != legacy_money(fund))

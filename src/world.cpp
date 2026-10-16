@@ -585,8 +585,8 @@ std::vector<std::uint8_t> World::export_save() const {
         put16(bytes, offset + 32, commerce.sprite_index);
         put16(bytes, offset + 34, commerce.toll_fee);
         bytes[offset + 25] = commerce.stock_index;
-        put32(bytes, offset + 40, std::bit_cast<std::uint32_t>(commerce.funds));
-        put32(bytes, offset + 44, std::bit_cast<std::uint32_t>(commerce.funds_change));
+        put32(bytes, offset + 40, legacy_i32(commerce.funds));
+        put32(bytes, offset + 44, legacy_i32(commerce.funds_change));
         put32(bytes, offset + 48, legacy_i32(commerce.shares_remaining));
         std::copy(commerce.shareholder_order.begin(), commerce.shareholder_order.end(),
                   bytes.begin() + static_cast<std::ptrdiff_t>(offset + 28));

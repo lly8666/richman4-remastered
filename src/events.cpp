@@ -649,12 +649,14 @@ EventResult apply_news_id(World &world, Random &random, std::uint8_t id, const E
         auto movement = std::uint8_t(0);
         if (id == 35) {
             const auto previous = company.funds;
-            company.funds = add(previous, previous);
-            company.funds_change = add(company.funds_change, company.funds);
+            const auto next_funds = mod::money_add(previous, previous);
+            const auto next_change = mod::money_add(company.funds_change, next_funds);
+            company.funds = next_funds;
+            company.funds_change = next_change;
             movement = static_cast<std::uint8_t>(static_cast<std::uint32_t>(previous / 10000) << 4);
         } else {
-            company.funds = add(company.funds, deltas[id - 30]);
-            company.funds_change = add(company.funds_change, deltas[id - 30]);
+            company.funds = mod::money_add(company.funds, deltas[id - 30]);
+            company.funds_change = mod::money_add(company.funds_change, deltas[id - 30]);
             movement = movements[id - 30];
         }
         if (company.stock_index < world.stocks.size()) {

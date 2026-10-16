@@ -191,7 +191,7 @@ bool sell_card(World &world, Shop &shop, std::size_t slot, std::uint8_t id) {
     if (shop.closed || !id || id > 30 || !consume_card(player.cards, world.card_supply, id))
         return false;
     mod::credit_points(player.points, unsigned(card_prices[id - 1]) * 9U / 10U);
-    shop.revenue = add(shop.revenue, card_prices[id - 1]);
+    shop.revenue = mod::money_add(shop.revenue, card_prices[id - 1]);
     return true;
 }
 bool sell_tool(World &world, Shop &shop, std::size_t slot, std::uint8_t id, unsigned quantity) {
@@ -202,7 +202,7 @@ bool sell_tool(World &world, Shop &shop, std::size_t slot, std::uint8_t id, unsi
     for (unsigned i = 0; i < quantity; ++i)
         (void)consume_tool(player.tool_amounts, world.tool_supply, id);
     mod::credit_points(player.points, price * 9U / 10U);
-    shop.revenue = add(shop.revenue, static_cast<std::int32_t>(price));
+    shop.revenue = mod::money_add(shop.revenue, price);
     return true;
 }
 void close_shop(World &world, Shop &shop, std::uint16_t property) {
@@ -210,8 +210,10 @@ void close_shop(World &world, Shop &shop, std::uint16_t property) {
         return;
     if (property > 6000 && property < 8000) {
         auto &commercial = world.commercials.at(property - 6000);
-        commercial.funds = add(commercial.funds, shop.revenue);
-        commercial.funds_change = add(commercial.funds_change, shop.revenue);
+        const auto next_funds = mod::money_add(commercial.funds, shop.revenue);
+        const auto next_change = mod::money_add(commercial.funds_change, shop.revenue);
+        commercial.funds = next_funds;
+        commercial.funds_change = next_change;
     }
     shop.closed = true;
 }

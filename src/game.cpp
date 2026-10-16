@@ -1612,8 +1612,10 @@ struct GameSession::Impl {
         auto paid = requested;
         if (payer_code > 100) {
             auto &company = world.commercials.at(static_cast<std::size_t>(payer_code - 100));
-            company.funds = subtract32(company.funds, requested);
-            company.funds_change = subtract32(company.funds_change, requested);
+            const auto next_funds = mod::money_sub(company.funds, requested);
+            const auto next_change = mod::money_sub(company.funds_change, requested);
+            company.funds = next_funds;
+            company.funds_change = next_change;
         } else {
             const auto slot = static_cast<std::size_t>(payer_code);
             auto &payer = world.players.at(slot).state;
@@ -1633,8 +1635,10 @@ struct GameSession::Impl {
             world.public_fund = add32(world.public_fund, paid);
         else if (recipient_code > 100) {
             auto &company = world.commercials.at(static_cast<std::size_t>(recipient_code - 100));
-            company.funds = add32(company.funds, paid);
-            company.funds_change = add32(company.funds_change, paid);
+            const auto next_funds = mod::money_add(company.funds, paid);
+            const auto next_change = mod::money_add(company.funds_change, paid);
+            company.funds = next_funds;
+            company.funds_change = next_change;
         } else {
             auto &recipient = world.players.at(static_cast<std::size_t>(recipient_code));
             auto &account = flags & 1U ? recipient.state.cash : recipient.state.bank_balance;
@@ -3573,7 +3577,7 @@ struct GameSession::Impl {
                 // FDIVP stored as binary32, then FILD funds × that ratio, truncated (FISTP).
                 const auto ratio = (numeric::Extended::from(held) / numeric::Extended::from(shares)).single();
                 row.payout[slot] =
-                    (numeric::Extended::from(company.funds) * numeric::Extended::from(ratio)).integer();
+                    (numeric::Extended::from(company.funds) * numeric::Extended::from(ratio)).integer64();
                 totals[slot] = add32(totals[slot], row.payout[slot]);
             }
             if (shares)

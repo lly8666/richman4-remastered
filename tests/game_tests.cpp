@@ -151,7 +151,7 @@ void mod_card_stacks_save_roundtrip() {
     rich4::mod::mark_mod_save(dat);
     require(dat.size() == marked_size, "saving an existing MOD DAT cannot append duplicate markers");
     const auto sidecar = rich4::mod::encode_tool_extension(value, dat);
-    require(sidecar.starts_with("RICH4-MOD-ECON-3 "), "stacked card count requires ECON-3");
+    require(sidecar.starts_with("RICH4-MOD-ECON-4 "), "stacked card count requires ECON-4");
     auto restored = rich4::World::from_save(rich4::SaveFile::decode(dat));
     require(rich4::card_quantity(restored.players[0].state.cards, 3) == 1,
             "legacy DAT stores only one card ID as preview");
