@@ -642,6 +642,13 @@ void monthly_settlement() {
                 wide_report->monthly->champion == 0 &&
                 large_month.world().players[0].state.bank_balance == INT64_C(55000000000000),
             "MOD monthly bank interest and total-wealth champion must retain signed64");
+    value = world();
+    value.header.date = {31, 10, 2026};
+    value.players[0].state.bank_balance = INT64_C(2000000000);
+    rich4::GameSession near_boundary(std::move(value), 3);
+    (void)play_days(near_boundary, 1);
+    require(near_boundary.world().players[0].state.bank_balance == INT64_C(2200000000),
+            "2bn bank deposit must not overflow when its 10% interest exceeds signed32");
 }
 // Unlike deterministic test replays, interactive loads do not restore a .rng
 // sidecar. Original save_load.asm reseeds from GetTickCount after loading DAT.
