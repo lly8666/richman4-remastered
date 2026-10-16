@@ -7,7 +7,19 @@
 
 namespace rich4 {
 
-using CardSlots = std::array<std::uint8_t, 15>;
+// The DAT still stores the original fifteen card IDs. MOD stacks carry their
+// real per-type amounts only in the validated versioned .DAT.mod companion.
+// Inherit the array interface to preserve original slot ordering, cards[i],
+// iterator-based renderers and low-value oracle tests.
+struct CardSlots : std::array<std::uint8_t, 15> {
+    std::array<std::uint16_t, 30> stacked_amounts{};
+    bool stacked = false;
+
+    void fill(std::uint8_t id) noexcept {
+        std::array<std::uint8_t, 15>::fill(id);
+        stacked_amounts.fill(0);
+    }
+};
 using CardSupply = std::array<std::uint8_t, 30>;
 using CardPrices = std::array<std::uint8_t, 30>;
 using ToolAmounts = std::array<std::uint16_t, 15>;
@@ -17,6 +29,12 @@ using ToolPrices = std::array<std::uint8_t, 13>;
 // Slot order is significant. Zero means an empty slot; card IDs are 1..30.
 // has_card deliberately accepts zero, matching the original empty-slot query.
 [[nodiscard]] std::size_t card_count(const CardSlots &cards) noexcept;
+// Convert a vanilla hand (including duplicates) into up to fifteen distinct
+// stacks. Do not alter the original DAT until a MOD gameplay session starts.
+void enable_card_stacks(CardSlots &cards);
+[[nodiscard]] std::uint16_t card_quantity(const CardSlots &cards, std::uint8_t card_id) noexcept;
+[[nodiscard]] std::size_t card_total_quantity(const CardSlots &cards) noexcept;
+[[nodiscard]] bool card_can_receive(const CardSlots &cards, std::uint8_t card_id) noexcept;
 [[nodiscard]] bool has_card(const CardSlots &cards, std::uint8_t card_id) noexcept;
 [[nodiscard]] std::uint8_t cheapest_card(const CardSlots &cards, const CardPrices &prices);
 

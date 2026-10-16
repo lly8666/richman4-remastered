@@ -142,7 +142,19 @@ void card_names_on_grid(Frame &frame, const CardSlots &cards, int x, int y, std:
     for (const auto id : cards) {
         if (!id || id > 30)
             continue;
-        centred(frame, services::card_names[id - 1], x + 45 + 80 * (tile % 5), y + 33 + 56 * (tile / 5), 20, white);
+        const int c = tile % 5, r = tile / 5;
+        centred(frame, services::card_names[id - 1], x + 45 + 80 * c, y + 33 + 56 * r, 20, white);
+        const auto count = card_quantity(cards, id);
+        if (count > 1) {
+            // A compact ink-and-gold counter sits below the original card
+            // label, keeping the full 3-digit value readable at 640x480.
+            const Rect counter{x + 37 + 80 * c, y + 42 + 56 * r,
+                               x + 83 + 80 * c, y + 59 + 56 * r};
+            ui::fill(frame.canvas, counter, ui::color(29, 29, 36));
+            ui::border(frame.canvas, counter, ui::color(232, 187, 88));
+            top_right(frame, "×" + std::to_string(count), counter.right - 2,
+                      counter.top + 1, 13, ui::color(255, 235, 180));
+        }
         if (order)
             order->push_back(id);
         ++tile;
@@ -831,7 +843,8 @@ void Screens::draw_shop(Frame &frame, GameSession &session, const GameDecision &
             const int kind = card ? 0 : 1;
             if (state.points < price)
                 complain(mode_lines[2]);
-            else if (card ? card_count(state.cards) >= 15 : state.tool_amounts.at(item - 1) >= mod::max_tool_amount)
+            else if (card ? !card_can_receive(state.cards, static_cast<std::uint8_t>(item))
+                          : state.tool_amounts.at(item - 1) >= mod::max_tool_amount)
                 complain(mode_lines[3]);
             else if (shop_.pick_kind != kind || shop_.pick_index != row) {
                 // Touch: the first tap shows the item in the balloon, a second tap buys it.

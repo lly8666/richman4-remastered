@@ -36,7 +36,7 @@ inline std::uint16_t legacy_shares(std::uint64_t amount) noexcept {
 
 inline std::string encode_tool_extension(const World &world, std::span<const std::uint8_t> dat) {
     std::ostringstream out;
-    out << "RICH4-MOD-ECON-2 " << dat.size() << ' ' << dat_hash(dat) << ' '
+    out << "RICH4-MOD-ECON-3 " << dat.size() << ' ' << dat_hash(dat) << ' '
         << world.players.size() << ' ' << world.stocks.size() << ' '
         << world.commercials.size() << '\n';
     for (const auto &player : world.players) {
@@ -52,6 +52,14 @@ inline std::string encode_tool_extension(const World &world, std::span<const std
             if (holding.amount < 0 || holding.amount > max_holding_shares)
                 throw SaveError("MOD stock holding count exceeds maximum");
             out << holding.amount << ' ';
+        }
+        // DAT stores card IDs only; true quantities per distinct card type live
+        // in ECON-3. ECON-2 remains readable for pre-stack MOD saves.
+        for (unsigned id = 1; id <= 30; ++id) {
+            const auto count = card_quantity(state.cards, static_cast<std::uint8_t>(id));
+            if (count > max_tool_amount)
+                throw SaveError("MOD card stack exceeds 999");
+            out << count << ' ';
         }
         out << '\n';
     }
@@ -107,7 +115,8 @@ inline void apply_tool_extension(World &world, std::span<const std::uint8_t> dat
     }
     std::uint64_t bytes = 0, hash = 0;
     std::size_t players = 0, stocks = 0, companies = 0;
-    if (magic != "RICH4-MOD-ECON-2" ||
+    const bool card_stacks = magic == "RICH4-MOD-ECON-3";
+    if ((magic != "RICH4-MOD-ECON-2" && !card_stacks) ||
         !(in >> bytes >> hash >> players >> stocks >> companies) ||
         bytes != dat.size() || hash != dat_hash(dat) ||
         players != world.players.size() || stocks != world.stocks.size() ||
@@ -141,6 +150,26 @@ inline void apply_tool_extension(World &world, std::span<const std::uint8_t> dat
                 world.players[p].stocks[i].amount != legacy_money(amount))
                 throw SaveError("MOD sidecar share holdings disagree with DAT");
             candidate.players[p].stocks[i].amount = amount;
+        }
+        if (card_stacks) {
+            std::array<unsigned, 30> preview{};
+            for (const auto id : legacy.cards) {
+                if (id > 30)
+                    throw SaveError("MOD DAT preview has invalid card ID");
+                if (id)
+                    ++preview[id - 1];
+            }
+            std::array<std::uint16_t, 30> amounts{};
+            for (std::size_t i = 0; i < amounts.size(); ++i) {
+                unsigned count = 0;
+                if (!(in >> count) || count > max_tool_amount ||
+                    (preview[i] == 0 && count != 0) ||
+                    (preview[i] != 0 && count < preview[i]))
+                    throw SaveError("MOD sidecar card counts disagree with DAT");
+                amounts[i] = static_cast<std::uint16_t>(count);
+            }
+            enable_card_stacks(state.cards);
+            state.cards.stacked_amounts = amounts;
         }
     }
     for (std::size_t i = 0; i < stocks; ++i) {

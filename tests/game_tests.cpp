@@ -131,6 +131,42 @@ void mod_tool_save_and_fixed_inflation() {
 }
 // MOD-wide DAT companion must restore every 64-bit balance, holding and
 // 32-bit share quota without leaking any truncated preview or stale state.
+void mod_card_stacks_save_roundtrip() {
+    auto value = world();
+    auto &cards = value.players[0].state.cards;
+    cards = {3, 3, 5};
+    rich4::enable_card_stacks(cards);
+    require(rich4::card_quantity(cards, 3) == 2 && rich4::card_count(cards) == 2,
+            "duplicate old cards compact before MOD save");
+    value.card_supply[2] = 240;
+    for (int i = 0; i < 997; ++i)
+        rich4::receive_card(cards, value.card_supply, rich4::services::card_prices, 3);
+    const auto dat = value.export_save();
+    const auto sidecar = rich4::mod::encode_tool_extension(value, dat);
+    require(sidecar.starts_with("RICH4-MOD-ECON-3 "), "stacked card count requires ECON-3");
+    auto restored = rich4::World::from_save(rich4::SaveFile::decode(dat));
+    require(rich4::card_quantity(restored.players[0].state.cards, 3) == 1,
+            "legacy DAT stores only one card ID as preview");
+    rich4::mod::apply_tool_extension(restored, dat, sidecar);
+    require(rich4::card_quantity(restored.players[0].state.cards, 3) == 999 &&
+                rich4::card_quantity(restored.players[0].state.cards, 5) == 1 &&
+                restored.players[0].state.cards.stacked,
+            "ECON-3 sidecar restores exact 999-card stack");
+    auto bad = restored;
+    const auto before = bad.players[0].state.cards.stacked_amounts;
+    auto tampered = sidecar;
+    const auto offset = tampered.find("999 ");
+    require(offset != std::string::npos, "stack count token exists in sidecar");
+    tampered.replace(offset, 3, "1000");
+    bool rejected = false;
+    try {
+        rich4::mod::apply_tool_extension(bad, dat, tampered);
+    } catch (const rich4::SaveError &) {
+        rejected = true;
+    }
+    require(rejected && bad.players[0].state.cards.stacked_amounts == before,
+            "corrupt card count sidecar rejected atomically");
+}
 void mod_wide_economy_save_roundtrip() {
     auto original = world();
     auto &account = original.players[0];
@@ -1637,6 +1673,7 @@ int main() {
     try {
         landing_pauses();
         mod_tool_save_and_fixed_inflation();
+        mod_card_stacks_save_roundtrip();
         mod_wide_economy_save_roundtrip();
         dice_and_paths();
         dice_effect_is_presentation_only();

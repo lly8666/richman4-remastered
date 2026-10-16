@@ -78,6 +78,32 @@ std::vector<Row> read_csv(const std::filesystem::path &path, std::size_t columns
     return rows;
 }
 
+void mod_loan_stock_invariant() {
+    auto w = fixture();
+    auto &state = w.players[0].state;
+    state.cash = 900'000'000;
+    state.bank_balance = 900'000'000;
+    state.loan = 0;
+    w.players[0].stocks[0] = {};
+    w.stocks[0].flags_4 = 0;
+    w.stocks[0].shares_available = 100'000'000;
+    w.stocks[0].flags_10 = 100'000'000;
+    w.stocks[0].float_bits[2] = bits(999999.0F);
+    const auto initial = rich4::stocks::player_wealth(w, 0);
+    state.bank_balance += 3'000'000'000LL;
+    state.loan += 3'000'000'000LL;
+    check(rich4::stocks::player_wealth(w, 0) == initial,
+          "borrowing must preserve net assets at constant stock quote");
+    const auto bought = rich4::stocks::buy_stock(w, 0, 0, 3000, true);
+    check(bought.cost == 2'999'997'000LL && state.bank_balance == 900'003'000LL &&
+                state.loan == 3'000'000'000LL &&
+                rich4::stocks::player_wealth(w, 0) == initial,
+          "loan-funded 999999-share purchases must preserve money and net assets");
+    const auto sold = rich4::stocks::sell_stock(w, 0, 0, 3000, true);
+    check(sold.proceeds == bought.cost && state.bank_balance == 3'900'000'000LL &&
+                rich4::stocks::player_wealth(w, 0) == initial,
+          "loan-funded sale restores funds without int32 wrap");
+}
 void unit_tests() {
     auto world = fixture();
     const auto sale = rich4::stocks::sell_stock(world, 0, 0, 1000, true);
@@ -432,6 +458,7 @@ void compare_oracle(const std::filesystem::path &directory) {
 int main(int argc, char **argv) {
     try {
         unit_tests();
+        mod_loan_stock_invariant();
         if (argc == 2) {
             compare_oracle(argv[1]);
         } else if (argc != 1) {

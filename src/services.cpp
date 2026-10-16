@@ -81,8 +81,8 @@ void computer_shop(World &world, Shop &shop, std::size_t slot) {
     std::stable_sort(candidates.begin(), candidates.end(),
                      [](auto a, auto b) { return card_prices[a - 1] > card_prices[b - 1]; });
     for (const auto id : candidates) {
-        if (card_count(player.cards) == player.cards.size())
-            break;
+        if (!card_can_receive(player.cards, id))
+            continue;
         if (card_prices[id - 1] <= card_budget) {
             buy_card_unchecked(world, shop, slot, id);
             card_budget -= card_prices[id - 1];
@@ -159,7 +159,7 @@ bool buy_card(World &world, Shop &shop, std::size_t slot, std::uint8_t id) {
     auto &player = world.players.at(slot).state;
     const auto item = std::find(shop.cards.begin(), shop.cards.end(), id);
     if (shop.closed || !id || id > 30 || item == shop.cards.end() || player.points < card_prices[id - 1] ||
-        card_count(player.cards) == player.cards.size() || !world.card_supply[id - 1])
+        !card_can_receive(player.cards, id) || !world.card_supply[id - 1])
         return false;
     buy_card_unchecked(world, shop, slot, id);
     shop.cards.erase(item);
@@ -180,7 +180,7 @@ bool sell_card(World &world, Shop &shop, std::size_t slot, std::uint8_t id) {
     auto &player = world.players.at(slot).state;
     if (shop.closed || !id || id > 30 || !consume_card(player.cards, world.card_supply, id))
         return false;
-    player.points = static_cast<std::uint16_t>(player.points + unsigned(card_prices[id - 1]) * 9U / 10U);
+    mod::credit_points(player.points, unsigned(card_prices[id - 1]) * 9U / 10U);
     shop.revenue = add(shop.revenue, card_prices[id - 1]);
     return true;
 }
@@ -303,8 +303,8 @@ bool apply_magic(World &world, Random &random, std::size_t actor, std::span<cons
         auto &player = world.players.at(slot);
         switch (effect) {
         case 0:
-            player.state.points = static_cast<std::uint16_t>(
-                player.state.points + sell_all_cards(player.state.cards, world.card_supply, card_prices));
+            mod::credit_points(player.state.points,
+                               sell_all_cards(player.state.cards, world.card_supply, card_prices));
             break;
         case 1:
             for (unsigned i = 0; i < 3; ++i)

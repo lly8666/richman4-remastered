@@ -47,6 +47,51 @@ std::size_t card_count(const CardSlots &cards) noexcept {
         std::count_if(cards.begin(), cards.end(), [](auto card) { return card != 0; }));
 }
 
+void enable_card_stacks(CardSlots &cards) {
+    if (cards.stacked)
+        return;
+    validate_cards(cards);
+    std::array<std::uint8_t, 15> unique{};
+    std::array<std::uint16_t, 30> amounts{};
+    std::size_t length = 0;
+    for (const auto id : cards) {
+        if (!id)
+            continue;
+        if (!amounts[id - 1])
+            unique[length++] = id;
+        ++amounts[id - 1];
+    }
+    std::copy(unique.begin(), unique.end(), cards.begin());
+    cards.stacked_amounts = amounts;
+    cards.stacked = true;
+}
+
+std::uint16_t card_quantity(const CardSlots &cards, std::uint8_t card_id) noexcept {
+    if (!card_id || card_id > 30)
+        return 0;
+    if (cards.stacked)
+        return cards.stacked_amounts[card_id - 1];
+    return static_cast<std::uint16_t>(std::count(cards.begin(), cards.end(), card_id));
+}
+
+std::size_t card_total_quantity(const CardSlots &cards) noexcept {
+    if (!cards.stacked)
+        return card_count(cards);
+    std::size_t total = 0;
+    for (const auto count : cards.stacked_amounts)
+        total += count;
+    return total;
+}
+
+bool card_can_receive(const CardSlots &cards, std::uint8_t card_id) noexcept {
+    if (!card_id || card_id > 30)
+        return false;
+    if (!cards.stacked)
+        return card_count(cards) < cards.size();
+    const auto count = card_quantity(cards, card_id);
+    return count < mod::max_tool_amount && (count || card_count(cards) < cards.size());
+}
+
 bool has_card(const CardSlots &cards, std::uint8_t card_id) noexcept {
     return std::find(cards.begin(), cards.end(), card_id) != cards.end();
 }
@@ -69,6 +114,16 @@ bool consume_card(CardSlots &cards, CardSupply &supply, std::uint8_t card_id) {
     const auto found = std::find(cards.begin(), cards.end(), card_id);
     if (found == cards.end())
         return false;
+    if (cards.stacked) {
+        auto &amount = cards.stacked_amounts[index];
+        if (!amount)
+            throw std::invalid_argument("MOD card stack is inconsistent");
+        --amount;
+        if (amount) {
+            supply[index] = increment_byte(supply[index]);
+            return true;
+        }
+    }
     const auto slot = static_cast<std::size_t>(found - cards.begin());
     // Original forward memcpy moved overlapping bytes left. memmove expresses
     // the observed behavior without relying on undefined C/C++ memcpy semantics.
@@ -81,6 +136,29 @@ bool consume_card(CardSlots &cards, CardSupply &supply, std::uint8_t card_id) {
 void receive_card(CardSlots &cards, CardSupply &supply, const CardPrices &prices, std::uint8_t card_id) {
     const auto index = card_index(card_id);
     validate_cards(cards);
+    if (cards.stacked) {
+        auto &amount = cards.stacked_amounts[index];
+        if (amount >= mod::max_tool_amount)
+            return; // Grant at 999 changes neither world supply nor the hand.
+        if (amount) {
+            ++amount;
+            --supply[index]; // Original global card supply is an 8-bit counter.
+            return;
+        }
+        if (card_count(cards) == cards.size()) {
+            const auto discarded = cheapest_card(cards, prices);
+            const auto old = cards.stacked_amounts[discarded - 1];
+            const auto found = std::find(cards.begin(), cards.end(), discarded);
+            std::move(found + 1, cards.end(), found);
+            cards.back() = 0;
+            cards.stacked_amounts[discarded - 1] = 0;
+            supply[discarded - 1] = static_cast<std::uint8_t>(supply[discarded - 1] + old);
+        }
+        *std::find(cards.begin(), cards.end(), 0) = card_id;
+        amount = 1;
+        --supply[index];
+        return;
+    }
     if (card_count(cards) == cards.size()) {
         consume_card(cards, supply, cheapest_card(cards, prices));
     }
@@ -90,6 +168,19 @@ void receive_card(CardSlots &cards, CardSupply &supply, const CardPrices &prices
 
 bool drop_half_cards(CardSlots &cards, CardSupply &supply) {
     validate_cards(cards, true);
+    if (cards.stacked) {
+        const auto total = card_total_quantity(cards);
+        if (total <= 1)
+            return false;
+        // Drop half of the individual cards, rotating across occupied types
+        // rather than destroying an entire 999-card stack in one draw.
+        for (std::size_t n = 0; n < total / 2; ++n) {
+            const auto present = card_count(cards);
+            const auto id = cards[n % present];
+            (void)consume_card(cards, supply, id);
+        }
+        return true;
+    }
     const auto count = card_count(cards);
     if (count <= 1)
         return false;
@@ -104,6 +195,19 @@ bool drop_half_cards(CardSlots &cards, CardSupply &supply) {
 std::uint32_t sell_all_cards(CardSlots &cards, CardSupply &supply, const CardPrices &prices) {
     validate_cards(cards);
     std::uint32_t points = 0;
+    if (cards.stacked) {
+        for (auto &card : cards) {
+            if (!card)
+                continue;
+            const auto index = card_index(card);
+            const auto amount = cards.stacked_amounts[index];
+            points += std::uint32_t(prices[index]) * amount;
+            supply[index] = static_cast<std::uint8_t>(supply[index] + amount);
+            cards.stacked_amounts[index] = 0;
+            card = 0;
+        }
+        return points;
+    }
     for (auto &card : cards) {
         if (card == 0)
             continue;

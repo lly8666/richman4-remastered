@@ -230,6 +230,8 @@ Result buy(World &w, std::size_t buyer, std::size_t seller, std::size_t index) {
     auto &source = w.players[seller];
     if (recipient.state.cash < offer.price)
         return failure("Not enough cash");
+    const auto buyer_cash = mod::money_sub(recipient.state.cash, offer.price);
+    const auto seller_bank = mod::money_add(source.state.bank_balance, offer.price);
     bool owner_changed = false;
     switch (offer.kind) {
     case OfferKind::stock: {
@@ -239,15 +241,19 @@ Result buy(World &w, std::size_t buyer, std::size_t seller, std::size_t index) {
         auto &sold = source.stocks[offer.item];
         const auto old_basis = std::bit_cast<float>(acquired.raw_cost_basis);
         if (!std::isfinite(old_basis) || acquired.amount < 0 ||
-            acquired.amount > std::numeric_limits<std::int32_t>::max() - offer.quantity)
+            acquired.amount > mod::max_holding_shares - offer.quantity)
             return failure("Invalid stock holding");
-        const auto prior_cost = (E::from(acquired.amount) * E::from(old_basis)).integer();
-        acquired.amount = add32(acquired.amount, offer.quantity);
+        const auto prior_cost = (E::from(static_cast<double>(acquired.amount)) *
+                                 E::from(static_cast<double>(old_basis))).integer64();
+        const auto total_cost = mod::money_add(prior_cost, offer.price);
+        const auto new_amount = acquired.amount + offer.quantity;
+        const auto new_basis = (E::from(static_cast<double>(total_cost)) /
+                                E::from(static_cast<double>(new_amount))).single();
+        acquired.amount = new_amount;
         sold.amount -= offer.quantity;
         if (!sold.amount)
             sold.raw_cost_basis = 0;
-        acquired.raw_cost_basis = std::bit_cast<std::uint32_t>(
-            (E::from(add32(prior_cost, offer.price)) / E::from(acquired.amount)).single());
+        acquired.raw_cost_basis = std::bit_cast<std::uint32_t>(new_basis);
         owner_changed = stocks::update_commercial_owner(w, buyer, offer.item);
         break;
     }
@@ -265,8 +271,8 @@ Result buy(World &w, std::size_t buyer, std::size_t seller, std::size_t index) {
                            static_cast<std::uint8_t>(offer.item));
         break;
     case OfferKind::card:
-        if (card_count(recipient.state.cards) >= 15)
-            return failure("Card inventory is full");
+        if (!card_can_receive(recipient.state.cards, static_cast<std::uint8_t>(offer.item)))
+            return failure("Card stack is full");
         (void)consume_card(source.state.cards, w.card_supply, static_cast<std::uint8_t>(offer.item));
         receive_card(recipient.state.cards, w.card_supply, services::card_prices,
                      static_cast<std::uint8_t>(offer.item));
@@ -274,8 +280,8 @@ Result buy(World &w, std::size_t buyer, std::size_t seller, std::size_t index) {
     default:
         return failure("Unknown listing type");
     }
-    recipient.state.cash -= offer.price;
-    source.state.bank_balance = add32(source.state.bank_balance, offer.price);
+    recipient.state.cash = buyer_cash;
+    source.state.bank_balance = seller_bank;
     recipient.status.cumulative_spending += static_cast<std::uint32_t>(offer.price);
     source.status.cumulative_income += static_cast<std::uint32_t>(offer.price);
     (void)cancel(w, seller, index);

@@ -129,6 +129,11 @@ struct GameSession::Impl {
         // configured index; every real new game / loaded DAT has backing.
         if (world.loaded_from_original_data())
             world.header.price_index = mod::fixed_price_index;
+        // Every MOD session uses one inventory slot per distinct card type.
+        // Old DAT inventories are upgraded in-memory; old save bytes remain
+        // valid and exact counts beyond one are kept in the MOD sidecar.
+        for (auto &entry : world.players)
+            enable_card_stacks(entry.state.cards);
         if (!world.has_initial_random_state() && check_game_end())
             return;
         if (world.has_initial_random_state()) {

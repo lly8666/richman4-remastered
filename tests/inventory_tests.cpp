@@ -81,6 +81,32 @@ void card_rules() {
             "sell adds full byte prices and wraps returned supply");
 }
 
+void mod_stacked_cards() {
+    CardSlots cards{3, 3, 5};
+    CardSupply supply{};
+    CardPrices prices{};
+    prices.fill(20);
+    enable_card_stacks(cards);
+    require(cards.stacked && card_count(cards) == 2 && card_total_quantity(cards) == 3 &&
+                card_quantity(cards, 3) == 2 && cards[0] == 3 && cards[1] == 5,
+            "old duplicate cards must compact into distinct MOD stacks");
+    supply[2] = 250;
+    for (int n = 0; n < 997; ++n)
+        receive_card(cards, supply, prices, 3);
+    require(card_quantity(cards, 3) == 999 && card_count(cards) == 2 &&
+                !card_can_receive(cards, 3), "MOD card stack reaches 999 without consuming slots");
+    const auto inventory_before = cards;
+    const auto supply_before = supply;
+    receive_card(cards, supply, prices, 3);
+    require(card_quantity(cards, 3) == 999 && cards.stacked_amounts == inventory_before.stacked_amounts &&
+                supply == supply_before, "1000th card grant is an unchanged no-op");
+    require(consume_card(cards, supply, 3) && card_quantity(cards, 3) == 998 &&
+                cards[0] == 3 && card_count(cards) == 2,
+            "using one stacked card must leave 998 and keep the type slot");
+    require(sell_all_cards(cards, supply, prices) == 19980 &&
+                card_count(cards) == 0 && card_total_quantity(cards) == 0,
+            "selling all stacks totals every physical card and clears all counts");
+}
 void tool_rules() {
     ToolAmounts amounts{};
     ToolSupply supply{};
@@ -232,6 +258,7 @@ void compare_original(const char *path) {
 int main(int argc, char **argv) {
     try {
         card_rules();
+        mod_stacked_cards();
         tool_rules();
         invalid_inputs();
         for (int i = 1; i < argc; ++i)

@@ -155,6 +155,24 @@ struct Extended {
                                                   : static_cast<std::int64_t>(magnitude));
     }
 
+    // MOD peer-to-peer stock trades need x87 truncation at signed 64-bit.
+    [[nodiscard]] std::int64_t integer64() const {
+        if (!significand || exponent <= -64)
+            return 0;
+        if (exponent >= 0) {
+            if (negative && exponent == 0 && significand == (std::uint64_t{1} << 63))
+                return INT64_MIN;
+            throw std::overflow_error("MOD legacy integer exceeds signed 64-bit range");
+        }
+        const auto magnitude = significand >> -exponent;
+        if (magnitude > (negative ? (std::uint64_t{1} << 63) : std::uint64_t{INT64_MAX}))
+            throw std::overflow_error("MOD legacy integer exceeds signed 64-bit range");
+        if (negative && magnitude == (std::uint64_t{1} << 63))
+            return INT64_MIN;
+        const auto positive = static_cast<std::int64_t>(magnitude);
+        return negative ? -positive : positive;
+    }
+
     // Explicit FSTP qword rounding. Some original game call sites subsequently
     // reinterpret its low 32 bits as an integer; callers express that separately.
     [[nodiscard]] double double_precision() const {
