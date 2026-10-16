@@ -256,12 +256,12 @@ struct MonthlyFigures {
     std::vector<DividendRow> dividends{};
     // lottery_draw
     std::array<std::uint8_t, 36> tickets{}; // owner slot+1 of each number BEFORE the draw
-    std::int32_t pool = 0;                  // 累積獎金 before the payout
+    std::int64_t pool = 0;                  // MOD: cumulative prize can exceed 32 bits
     std::uint8_t number = 0;                // drawn number 1..36
     std::int32_t winner = -1;               // winning slot, -1 = nobody
     // month_report. Cards (Panel 25:11+i): 存款 = deposit before interest, 利息 = trunc(deposit×0.1)
     // or 貸款中. Champion panel: cash, balance (deposit after interest) and 總資產 (wealth after it).
-    std::array<std::int32_t, 4> cash{}, deposit{}, interest{}, balance{}, total{};
+    std::array<std::int64_t, 4> cash{}, deposit{}, interest{}, balance{}, total{}; // MOD: full money
     std::uint8_t loans = 0;                            // bit mask: 貸款中 (no interest this month)
     std::array<std::uint8_t, 4> unlucky_days{};        // 本月倒楣天數 (status +66)
     std::array<std::uint32_t, 4> income{}, spending{}; // 本月意外之財 / 本月意外損失 (+96 / +92)
