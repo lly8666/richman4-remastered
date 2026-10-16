@@ -2,6 +2,7 @@
 // Portable translation of map/player records described in mytbk/rich4.
 // See docs/migrations/010-world.md for source boundaries and retained raw state.
 #include "rich4/world.hpp"
+#include "rich4/mod_rules.hpp"
 #include "rich4/direction.hpp"
 #include "rich4/random.hpp"
 
@@ -389,6 +390,16 @@ std::vector<std::uint8_t> World::export_save() const {
     check_table(commercials, map_.commercials);
     check_table(landscapes, map_.raw_reserved_table_4);
     auto bytes = backing_;
+    // Legacy DAT has 32-bit money/holdings and 16-bit stock quotas. The real
+    // MOD values are kept in a checksum-linked .mod sidecar; the DAT contains a
+    // saturated compatibility preview, NEVER truncated modulo 2^N.
+    const auto legacy_i32 = [](std::int64_t x) -> std::uint32_t {
+        return std::bit_cast<std::uint32_t>(static_cast<std::int32_t>(
+            std::clamp(x, std::int64_t(INT32_MIN), std::int64_t(INT32_MAX))));
+    };
+    const auto legacy_u16 = [](std::uint64_t x) -> std::uint16_t {
+        return static_cast<std::uint16_t>(std::min<std::uint64_t>(x, UINT16_MAX));
+    };
     bytes[4] = header.date.day;
     bytes[5] = header.date.month;
     put16(bytes, 6, header.date.year);
@@ -415,10 +426,10 @@ std::vector<std::uint8_t> World::export_save() const {
         bytes[offset + 19] = state.character;
         bytes[offset + 20] = state.sex;
         bytes[offset + 21] = state.controller_flags;
-        put32(bytes, offset + 28, std::bit_cast<std::uint32_t>(state.cash));
-        put32(bytes, offset + 32, std::bit_cast<std::uint32_t>(state.bank_balance));
-        put32(bytes, offset + 36, std::bit_cast<std::uint32_t>(state.loan));
-        put32(bytes, offset + 40, std::bit_cast<std::uint32_t>(state.special_finance));
+        put32(bytes, offset + 28, legacy_i32(state.cash));
+        put32(bytes, offset + 32, legacy_i32(state.bank_balance));
+        put32(bytes, offset + 36, legacy_i32(state.loan));
+        put32(bytes, offset + 40, legacy_i32(state.special_finance));
         put32(bytes, offset + 44, player.status.loan_due_date);
         put16(bytes, offset + 48, state.points);
         for (const auto &field : status_bytes)
@@ -441,7 +452,7 @@ std::vector<std::uint8_t> World::export_save() const {
                 static_cast<std::uint8_t>(std::min<unsigned>(state.tool_amounts[tool], 255U));
         for (std::size_t stock = 0; stock < player.stocks.size(); ++stock) {
             const auto stock_offset = 0x21f6 + slot * 96 + stock * 8;
-            put32(bytes, stock_offset, std::bit_cast<std::uint32_t>(player.stocks[stock].amount));
+            put32(bytes, stock_offset, legacy_i32(player.stocks[stock].amount));
             put32(bytes, stock_offset + 4, player.stocks[stock].raw_cost_basis);
         }
     }
@@ -454,7 +465,7 @@ std::vector<std::uint8_t> World::export_save() const {
     std::copy(lottery_tickets.begin(), lottery_tickets.end(), bytes.begin() + 0x26be);
     put32(bytes, 0x26f2, news_cursor);
     put32(bytes, 0x26f6, fortune_cursor);
-    put32(bytes, 0x26ba, std::bit_cast<std::uint32_t>(public_fund));
+    put32(bytes, 0x26ba, legacy_i32(public_fund));
     put32(bytes, 0x269a, std::bit_cast<std::uint32_t>(news_effect_days));
     put32(bytes, 0x267e, lease_mode);
     put32(bytes, 0x2743, camera_rotation);
@@ -498,8 +509,8 @@ std::vector<std::uint8_t> World::export_save() const {
         put16(bytes, offset + 4, stock.flags_4);
         bytes[offset + 6] = stock.suspension_days;
         bytes[offset + 7] = stock.news_movement;
-        put16(bytes, offset + 8, stock.shares_available);
-        put16(bytes, offset + 10, stock.flags_10);
+        put16(bytes, offset + 8, legacy_u16(stock.shares_available));
+        put16(bytes, offset + 10, legacy_u16(stock.flags_10));
         put32(bytes, offset + 32, stock.raw_32);
         for (std::size_t i = 0; i < 5; ++i)
             put32(bytes, offset + 12 + 4 * i, stock.float_bits[i]);
@@ -576,7 +587,7 @@ std::vector<std::uint8_t> World::export_save() const {
         bytes[offset + 25] = commerce.stock_index;
         put32(bytes, offset + 40, std::bit_cast<std::uint32_t>(commerce.funds));
         put32(bytes, offset + 44, std::bit_cast<std::uint32_t>(commerce.funds_change));
-        put32(bytes, offset + 48, std::bit_cast<std::uint32_t>(commerce.shares_remaining));
+        put32(bytes, offset + 48, legacy_i32(commerce.shares_remaining));
         std::copy(commerce.shareholder_order.begin(), commerce.shareholder_order.end(),
                   bytes.begin() + static_cast<std::ptrdiff_t>(offset + 28));
         put32(bytes, offset + 36, std::bit_cast<std::uint32_t>(commerce.valuation));
@@ -631,7 +642,7 @@ World World::from_map_resource(std::span<const std::uint8_t> map, const NewGameO
         const auto &source = initial_stocks[(options.stage_id * 4U + options.map_id) * 12U + index];
         auto &stock = world.stocks[index];
         stock.flags_4 = source.flags;
-        stock.shares_available = source.shares;
+        stock.shares_available = std::uint32_t(source.shares) * mod::share_supply_multiplier;
         const auto price_bits = std::bit_cast<std::uint32_t>(source.price);
         stock.float_bits = {price_bits, price_bits, price_bits,
                             std::bit_cast<std::uint32_t>(source.volatility), 0};
@@ -640,7 +651,8 @@ World World::from_map_resource(std::span<const std::uint8_t> map, const NewGameO
         auto &commercial = world.commercials[id];
         if (commercial.stock_index >= world.stocks.size())
             throw SaveError("Commercial stock index is outside original stock table");
-        commercial.shares_remaining = 10000 - world.stocks[commercial.stock_index].shares_available;
+        commercial.shares_remaining = std::int64_t(mod::max_market_shares) -
+                                      world.stocks[commercial.stock_index].shares_available;
         world.stocks[commercial.stock_index].flags_4 = static_cast<std::uint16_t>(id);
     }
     Random random(options.random_seed);
