@@ -204,7 +204,7 @@ std::vector<std::size_t> magic_targets(const World &world, unsigned category) {
     if (category >= 12)
         throw std::invalid_argument("magic category outside original table");
     std::vector<std::size_t> result;
-    std::int32_t maximum = 0;
+    std::int64_t maximum = 0;
     for (std::size_t slot = 0; slot < world.players.size(); ++slot) {
         const auto &player = world.players[slot];
         if (!player.state.controller_flags)
@@ -221,7 +221,7 @@ std::vector<std::size_t> magic_targets(const World &world, unsigned category) {
                 result.push_back(slot);
             continue;
         }
-        std::int32_t value = 0;
+        std::int64_t value = 0;
         if (category == 0)
             value = stocks::player_wealth(world, slot);
         else if (category == 1 || category == 2) {
@@ -284,6 +284,15 @@ bool apply_magic(World &world, Random &random, std::size_t actor, std::span<cons
         (effect == 5 && !callbacks.upgrade) || (effect == 9 && !callbacks.downgrade) ||
         (effect == 7 && !callbacks.turn_around) || (effect == 11 && !callbacks.auction))
         return false;
+    // The cash-to-bank spell affects every selected player. Validate all
+    // 64-bit balances before touching any account, so overflow cannot leave
+    // a partially transferred target group.
+    if (effect == 4) {
+        for (const auto slot : targets) {
+            const auto &state = world.players[slot].state;
+            (void)mod::money_add(state.bank_balance, state.cash);
+        }
+    }
     for (const auto slot : targets) {
         auto &player = world.players.at(slot);
         switch (effect) {
@@ -312,7 +321,7 @@ bool apply_magic(World &world, Random &random, std::size_t actor, std::span<cons
             player.status.days_stopping = static_cast<std::uint8_t>((player.status.days_stopping + 1) & 0x7f);
             break;
         case 4:
-            player.state.bank_balance = add(player.state.bank_balance, player.state.cash);
+            player.state.bank_balance = mod::money_add(player.state.bank_balance, player.state.cash);
             player.state.cash = 0;
             break;
         case 5:

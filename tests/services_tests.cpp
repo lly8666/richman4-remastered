@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "rich4/services.hpp"
 #include <iostream>
+#include <limits>
 #include <numeric>
 #include <stdexcept>
 
@@ -167,6 +168,47 @@ void magic_selection_and_effects() {
                 w.players[0].state.points == points + 450 && w.players[0].state.tool_amounts[5] == 0,
             "equipped car included at full price");
 }
+
+void mod_magic_64bit_money() {
+    auto w = sample();
+    w.players[0].state.cash = 3'000'000'000'000LL;
+    w.players[1].state.cash = 4'000'000'000'000LL;
+    w.players[0].state.bank_balance = 5'000'000'000'000LL;
+    w.players[1].state.bank_balance = 6'000'000'000'000LL;
+    require(services::magic_targets(w, 3) == std::vector<std::size_t>({1}),
+            "magic cash ranking must compare signed64 instead of narrowing");
+    require(services::magic_targets(w, 4) == std::vector<std::size_t>({1}),
+            "magic deposit ranking must compare signed64 instead of narrowing");
+    require(services::magic_targets(w, 0) == std::vector<std::size_t>({1}),
+            "magic net-wealth ranking must compare full 64-bit value");
+    Random random(123);
+    const std::array<std::size_t, 2> group{0, 1};
+    require(services::apply_magic(w, random, 0, group, 4, {}),
+            "magic transfer cash to bank with 64-bit amounts");
+    require(w.players[0].state.cash == 0 &&
+                w.players[0].state.bank_balance == 8'000'000'000'000LL &&
+                w.players[1].state.cash == 0 &&
+                w.players[1].state.bank_balance == 10'000'000'000'000LL,
+            "magic cash-to-bank transfer must conserve funds above int32");
+
+    auto overflow = sample();
+    overflow.players[0].state.cash = 3'000'000'000'000LL;
+    overflow.players[0].state.bank_balance = 4'000'000'000'000LL;
+    overflow.players[1].state.cash = 1000;
+    overflow.players[1].state.bank_balance = std::numeric_limits<std::int64_t>::max() - 500;
+    bool rejected = false;
+    try {
+        (void)services::apply_magic(overflow, random, 0, group, 4, {});
+    } catch (const std::overflow_error &) {
+        rejected = true;
+    }
+    require(rejected, "overflowing target must reject the entire cash-to-bank spell");
+    require(overflow.players[0].state.cash == 3'000'000'000'000LL &&
+                overflow.players[0].state.bank_balance == 4'000'000'000'000LL &&
+                overflow.players[1].state.cash == 1000 &&
+                overflow.players[1].state.bank_balance == std::numeric_limits<std::int64_t>::max() - 500,
+            "rejected group cash-to-bank spell must not partially transfer first target");
+}
 } // namespace
 int main() {
     try {
@@ -174,6 +216,7 @@ int main() {
         transactions();
         computer_policy();
         magic_selection_and_effects();
+        mod_magic_64bit_money();
         std::cout << "shop inventories, pricing, AI, magic targeting/effects passed\n";
     } catch (const std::exception &e) {
         std::cerr << e.what() << '\n';
