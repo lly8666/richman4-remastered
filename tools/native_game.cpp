@@ -1068,6 +1068,21 @@ class Application {
                 mod::apply_tool_extension(loaded, bytes,
                                           std::string_view(reinterpret_cast<const char *>(extension.data()),
                                                            extension.size()));
+            } else {
+                // 65535 market supply is impossible in an unmodified Richman4
+                // DAT (the entire original share universe is 10000). It is a
+                // saturated MOD preview: without its companion, the real
+                // multi-million share counters cannot safely be reconstructed.
+                const bool missing_wide_ledger =
+                    std::any_of(loaded.stocks.begin(), loaded.stocks.end(), [](const auto &stock) {
+                        return stock.shares_available == UINT16_MAX || stock.flags_10 == UINT16_MAX;
+                    }) ||
+                    std::any_of(loaded.players.begin(), loaded.players.end(), [](const auto &player) {
+                        return std::any_of(player.state.tool_amounts.begin(), player.state.tool_amounts.end(),
+                                           [](auto count) { return count > 9; });
+                    });
+                if (missing_wide_ledger)
+                    throw SaveError("MOD DAT requires its matching .DAT.mod financial companion");
             }
             install_session(std::move(loaded), seed);
             audio_->select_music(0); // AUDIO: loading moves on to the next playlist track (save_load.asm:978)
