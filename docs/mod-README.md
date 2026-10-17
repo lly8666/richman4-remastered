@@ -107,3 +107,9 @@ MOD 保留原始 DAT 字节布局；溢出旧字段范围的数据在 DAT 写入
 ## 2026-10-17 首次固定签名打包及开局选项 UI 验证
 
 源码 [70efe575](https://github.com/lly8666/richman4-remastered/commit/70efe575fd9032b4ee440924cda9b1ed89d96740) 将开局 900,000,000 和 30,000,000 显示为 **9億**、**3000萬**，其余六档统一萬单位，金色高资金档标识与选中高亮；保留 20 萬默认值和全部精确金额。CI [38997529462](https://github.com/lly8666/richman4-remastered/actions/runs/38997529462) 成功。Android workflow [38997573631](https://github.com/lly8666/qairt-sdk-archive/actions/runs/38997573631) 成功，APK `versionCode=11`，固定签名证书校验通过。Artifact `Richman4-MOD-Android-arm64-test-signed-11` 仅在到期 `2026-10-20T03:12:16Z` 前可下载。此前临时签名版不可直接覆盖。**没有真机界面截图或长时间运行验收。** 更多细节及未完成项请看 [开发实录](history/MOD-DEVELOPMENT-SESSION-2026-10-17.md)。
+
+## 2026-10-17：存档列表与快捷读档完整性修复
+
+代码提交 [`16cc57cf`](https://github.com/lly8666/richman4-remastered/commit/16cc57cfced55785c52752b61af869ddd583d129) 为 Android 读取存档统一新增 `include/rich4/mod_save_load.hpp::decode_checked_mod_save`。以前存档列表仅解出 DAT 头部即可显示为“有效”，但该 DAT 所需的 `.DAT.mod` 可能已丢失、损坏或属于另一局。现在列表与真正读档都通过同一套 ECON-4/旧版侧车校验；直接导入合法原版 DAT 仍被允许，旧 MOD 必须保留完整侧车才能无损恢复。F9 快捷读档在最新存档不完整时改为按日期尝试其他完整槽位；显式选择的存档加载失败仍如实提示，不隐式改读另一局。
+
+[核心 CI #39046429771](https://github.com/lly8666/richman4-remastered/actions/runs/39046429771) 已确认 **36/36** 测试通过（包括缺失/破损侧车和低值原版 DAT 兼容回归）。该改动**不修复**因断电造成的 DAT、MOD、RNG 三文件跨文件不一致；备份时仍必须三文件同组。以上仅为 headless 核心测试；完整 Android 编译、真机选择列表与 F9 快捷恢复仍需单独验证。

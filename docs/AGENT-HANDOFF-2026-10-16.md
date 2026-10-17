@@ -217,3 +217,11 @@ ctest --test-dir build/ci --output-on-failure --parallel 3
 - 用户已在 builder 仓库加密 Secrets 配置固定 PKCS12；成功构建 [38997573631](https://github.com/lly8666/qairt-sdk-archive/actions/runs/38997573631) 日志**直接确认**加载保留的私钥、证书 SHA-256 `36778ecf6ef797072560d5cf75777ff508d67a30aa06e15b3e5fabb74e65577d`，`versionCode=11`，APK 资源校验成功。Artifact `Richman4-MOD-Android-arm64-test-signed-11` / ID `12087352928`，到期 `2026-10-20T03:12:16Z`。这是**第一版固定签名 APK**；早期临时签名版本不可直接覆盖。永不把私钥/密码内容提交 Git。
 - 此前动画顺序改造（彩票动画/破产影片/月报在结果通知前，卡片 popup 按真实事件排队）经过核心 CI [38940817651](https://github.com/lly8666/richman4-remastered/actions/runs/38940817651) success，也被同一新版 APK 源码包含；没有 Android 真机逐帧验证。
 - 本轮交接修改仅是文档，**不修改游戏业务规则也不重发 APK**；上面的核心/API 通过和 APK 成功分别对应文档前的代码 SHA。未来的 agent 切勿将 GitHub Actions 编译和签名成功等同于实机测试或旧坏档完全修复。
+
+## 17. 2026-10-17 新接手 Agent：存档槽位完整性检查
+
+- 接手时远端 `mod` HEAD `ca588ef5d7369d5a87e05aa18d163fe82aa7eea8` 是上一轮纯文档提交；上一次通过 Android 的**游戏代码**是 `70efe575fd9032b4ee440924cda9b1ed89d96740`，构建版本 11。不要把它与本轮新提交混淆。
+- 新的 MOD 源码提交 [`16cc57cf`](https://github.com/lly8666/richman4-remastered/commit/16cc57cfced55785c52752b61af869ddd583d129) **只写 `mod`**。修复 Android 存档列表仅检查 DAT 头而可能将丢失/错配 ECON-4 侧车的槽位列为有效的问题。新增共享 `mod::decode_checked_mod_save`；列表、交互读档共享完整校验；F9 按文件时间顺序跳过不完整存档。原版低值 DAT 继续允许无附档读入，坏的 MOD 侧车坚决不静默忽略。
+- `tests/game_tests.cpp::mod_save_load_slot_integrity` 追加：完整 90 亿现金恢复、缺 MOD 拒绝、篡改 MOD 拒绝、原版 DAT 无 MOD 回读、错误侧车拒绝。核心 [CI 39046429771](https://github.com/lly8666/richman4-remastered/actions/runs/39046429771) 的 CTest 36/36 success。Android SDK/SDL3 编译、真实触屏与断电恢复没有由此核心 CI 验收。
+- **下一步**：仅将正确的独立 `qairt-sdk-archive/.github/workflows/build-richman4-android-mod.yml` pin 更新至包含上述修复的 `mod` SHA，确认 versionCode 递增、固定签名指纹、ARM64 库、游戏素材及完整 Android 编译；切勿改 main 版游戏代码或其他旧 MOD 工作流。
+- **依然未解决**：三文件组 `.DAT/.DAT.mod/.rng` 跨文件原子替换；缺少真实用户异常贷款存档；真实 Android 存档槽位/触屏与全种类组合动画测试。不要将本轮“选档过滤”宣传为“跨文件事务已经修好”。

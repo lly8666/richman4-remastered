@@ -1,6 +1,11 @@
 # 《大富翁4》原版重构与 MOD：开发全历史和可核查索引
 更新：2026-10-17。本记录收录 **截至 `70efe575fd9032b4ee440924cda9b1ed89d96740` 的 385 条可达 Git 提交记录**，由远端提交历史自动汇总；它不是声称能够复原没有落入 Git 的私人聊天、临时调试或丢失的构建产物。
 
+
+## 增量续开发记录 · 2026-10-17（不覆盖上面的 385 条历史基线）
+
+- [`16cc57cfced55785c52752b61af869ddd583d129`](https://github.com/lly8666/richman4-remastered/commit/16cc57cfced55785c52752b61af869ddd583d129) — `MOD: validate complete save companions in slot picker and quick-load fallback`。新增 `include/rich4/mod_save_load.hpp`，统一实际读档与存档槽位对 `.DAT.mod` 的 checksum、ECON-4 字段和 DAT 饱和预览验证，拒绝丢失/错配侧车，兼容普通原版 DAT；F9 快捷读档可跳过较新但不完整的 Autosave。新增专项回归 `mod_save_load_slot_integrity`；[CI 39046429771](https://github.com/lly8666/richman4-remastered/actions/runs/39046429771) 36/36 成功。**三文件跨文件原子事务和 Android 真机运行仍未验收，不能据此关闭原有风险。**
+
 ## 一、项目与分支
 - 源代码：[richman4-remastered](https://github.com/lly8666/richman4-remastered)；标准重构 `main` 用于尽力贴合 Windows 大富翁4 v3.11。
 - 独立实验版 `mod` 从 2026-10-15 的原版修复提交 `f87e8dca` 分出；**全部改版规则只进 mod，不回写 main**。

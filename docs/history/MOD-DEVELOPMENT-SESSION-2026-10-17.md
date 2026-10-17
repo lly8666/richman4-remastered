@@ -59,3 +59,12 @@
 ## 5. 新 agent 启动
 
 请直接复制仓库中的 [全新 Agent 接手提示词](../AGENT-TAKEOVER-PROMPT-2026-10-17.md) 作为首条任务。该文件是可独立运行的交接指令；它要求重新验证最新 SHA、CI、签名、读完资料再开发，且不会让接手者依赖本聊天上下文。
+
+## 6. 2026-10-17 后续开发：完整校验存档槽位，避免坏 Autosave 冒充可用存档
+
+本轮先严格依 AGENTS、2026-10-16 交接、完整开发历史、动画审计及固定签名文档核查远端。发现源代码 `mod=ca588ef5` 是后续纯文档提交，Android 专用构建仓库 `main=a1d7a54d` 的 MOD 工作流仍绑 `70efe575`。上次核心 #38997529462、Android #38997573631 为 success，versionCode 11，证书为已认可公开指纹。
+
+- **问题**：`tools/native_game.cpp::read_slots` 只验证 SaveFile DAT 头部，列表可能展示丢失/错配 `.DAT.mod` 的“有效存档”；F9 曾优先加载最新日期的损坏 Autosave，而不尝试旧的完好槽位。
+- **修改**：提交 [`16cc57cfced55785c52752b61af869ddd583d129`](https://github.com/lly8666/richman4-remastered/commit/16cc57cfced55785c52752b61af869ddd583d129) 新增 `include/rich4/mod_save_load.hpp`；更新 `tools/native_game.cpp` 存档槽位检查、正式读档入口以及 F9 回退；更新 `tests/game_tests.cpp` 增加合法旧 DAT、MOD 完整加载、损坏与缺失侧车拒绝回归。只更新 `mod`，未动原版 `main` 或股东赠卡语义。
+- **已验证**：[核心 CI #39046429771](https://github.com/lly8666/richman4-remastered/actions/runs/39046429771) 的 `test` job 成功，36/36 CTest 通过。**核心测试未覆盖 SDL3 完整 UI 编译、Android 触屏，也没有真机恢复测试**。
+- **风险**：选档严格校验不等于三文件事务；RNG 在交互读档时有意重新播种，自动回放才读取 `.rng`；缺失旧 MOD 侧车时不能通过饱和 DAT 预览可靠恢复宽资金。用户仍须成套备份 DAT/MOD/RNG。
