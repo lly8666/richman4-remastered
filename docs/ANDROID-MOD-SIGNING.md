@@ -26,3 +26,9 @@ GitHub Actions 只有通过 `qairt-sdk-archive` 的仓库加密 Secrets 才使�
 ## 2026-10-17 已完成配置并成功固定签名（后续状态覆盖旧段落）
 
 用户已在 `qairt-sdk-archive` 设置两项加密 Secrets，实际 [成功工作流 #38997573631](https://github.com/lly8666/qairt-sdk-archive/actions/runs/38997573631) 的日志显示 `Using retained private key from GitHub Actions encrypted Secrets.`，签名证书 SHA-256 与上面的固定值严格相符，APK `versionCode=11`，artifact `Richman4-MOD-Android-arm64-test-signed-11`。**此日志证明当次 Secrets 工作，不证明可查询或显示其秘密内容**。请勿再次请求用户分享密码或将 .p12 发到公开渠道。采用同一固定证书、同一包名、后继 `versionCode` 才能从这一版继续覆盖升级。旧临时签名 APK 仍不相容。
+
+## 2026-10-17 第二版同证书可升级构建核验
+
+上一版固定签名 `versionCode=11` 之后，新构建 [#39046665169](https://github.com/lly8666/qairt-sdk-archive/actions/runs/39046665169) 成功产生 `versionCode=12`（APK 包名 `io.divby0.rich4.mod`）。CI 从原有加密 Secrets 使用保留密钥签名，公开证书 SHA-256 **仍是** `36778ecf6ef797072560d5cf75777ff508d67a30aa06e15b3e5fabb74e65577d`；按 Android API 范围独立执行 V1/V2/V3 验签成功，未生成新临时私钥。
+
+本次可验证 APK SHA-256 `26aa2ee56979213afa6ba707553c86f964aaccf31356e4ed5faff5439aaf22ba`，`versionCode=12`，源码 `011bae0024df033be92622b98176216118867a0e`，Artifact `Richman4-MOD-Android-arm64-test-signed-12`（ID `12106426495`；2026-10-20T15:52:05Z 过期）。静态证书与版本校验支持从同证书 11 版本进行正常覆盖升级，但**未实际在 Android 设备安装测试**；更早临时证书版本仍不能覆盖。保留原始存档 `.DAT`、`.DAT.mod`、`.rng` 整组备份。私钥、密码及其 base64 依旧严格保密。

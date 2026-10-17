@@ -113,3 +113,9 @@ MOD 保留原始 DAT 字节布局；溢出旧字段范围的数据在 DAT 写入
 代码提交 [`16cc57cf`](https://github.com/lly8666/richman4-remastered/commit/16cc57cfced55785c52752b61af869ddd583d129) 为 Android 读取存档统一新增 `include/rich4/mod_save_load.hpp::decode_checked_mod_save`。以前存档列表仅解出 DAT 头部即可显示为“有效”，但该 DAT 所需的 `.DAT.mod` 可能已丢失、损坏或属于另一局。现在列表与真正读档都通过同一套 ECON-4/旧版侧车校验；直接导入合法原版 DAT 仍被允许，旧 MOD 必须保留完整侧车才能无损恢复。F9 快捷读档在最新存档不完整时改为按日期尝试其他完整槽位；显式选择的存档加载失败仍如实提示，不隐式改读另一局。
 
 [核心 CI #39046429771](https://github.com/lly8666/richman4-remastered/actions/runs/39046429771) 已确认 **36/36** 测试通过（包括缺失/破损侧车和低值原版 DAT 兼容回归）。该改动**不修复**因断电造成的 DAT、MOD、RNG 三文件跨文件不一致；备份时仍必须三文件同组。以上仅为 headless 核心测试；完整 Android 编译、真机选择列表与 F9 快捷恢复仍需单独验证。
+
+### 2026-10-17 新版 APK（存档槽位完整性修复）最终验收
+
+在 [core #39046429771](https://github.com/lly8666/richman4-remastered/actions/runs/39046429771) 36/36 后，本次文档整理和业务修复固定为 `mod` 源码 `011bae0024df033be92622b98176216118867a0e`，仅修改构建仓库的 `.github/workflows/build-richman4-android-mod.yml` pin（构建仓库提交 `44a67274dc644a07299924d825938d0ab21692dc`）。[Android #39046665169](https://github.com/lly8666/qairt-sdk-archive/actions/runs/39046665169) **success**，versionCode **12**（大于此前 11），Artifact `Richman4-MOD-Android-arm64-test-signed-12` / ID `12106426495`，到期 `2026-10-20T15:52:05Z`。工作流核验固定公钥 SHA-256 `36778ecf6ef797072560d5cf75777ff508d67a30aa06e15b3e5fabb74e65577d`，Android 不同 API 范围上的 V1/V2/V3 验签分别成功。公开日志不包含密钥私钥或密码。
+
+从实际下载的 Artifact 二次校验：APK 174,178,431 字节，SHA-256 为 `26aa2ee56979213afa6ba707553c86f964aaccf31356e4ed5faff5439aaf22ba`，与 ZIP 自带 `SHA256SUMS.txt` 一致；独立读取 APK `AndroidManifest.xml` 得到 `io.divby0.rich4.mod`、`versionCode=12`；APK 内 10 个必备资源/ARM64 库及 25 个 MIDI 均存在。**真实 Android 手机的选档、快捷读档、启动、覆盖安装和长时间动画仍未实测。** 本段是源码功能提交后的构建证据，不代表已解决 DAT/MOD/RNG 跨文件事务。

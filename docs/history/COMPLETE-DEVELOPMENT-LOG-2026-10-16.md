@@ -437,3 +437,8 @@
 | 2026-10-05 | [`38d0ef93772e`](https://github.com/lly8666/richman4-remastered/commit/38d0ef93772e47cb886e583bc62b4fbd3bc83fed) | feat: configure sandboxed Mac runtime with original MingLiU font |
 | 2026-10-05 | [`5ed146f083df`](https://github.com/lly8666/richman4-remastered/commit/5ed146f083dfe84059e1feeffbce780ccbf072a2) | feat: add asset audit and reproducible Windows build on Mac |
 | 2026-10-05 | [`5d0b427c8952`](https://github.com/lly8666/richman4-remastered/commit/5d0b427c895243fb729a6557dedeb52f827cae10) | chore: keep game assets and local runtime outside version control |
+
+## 2026-10-17 新 APK 构建与签名验证索引（续前文增量）
+
+- [文档提交 `011bae0024df033be92622b98176216118867a0e`](https://github.com/lly8666/richman4-remastered/commit/011bae0024df033be92622b98176216118867a0e)：记录新增存档槽位安全回归和 36/36 CI。独立构建仓库 [`44a67274dc644a07299924d825938d0ab21692dc`](https://github.com/lly8666/qairt-sdk-archive/commit/44a67274dc644a07299924d825938d0ab21692dc) **只更新** `.github/workflows/build-richman4-android-mod.yml` 对源码的固定 SHA，未动主线游戏源。
+- [新版 APK 构建 #39046665169](https://github.com/lly8666/qairt-sdk-archive/actions/runs/39046665169) **success**，`versionCode=12`、`io.divby0.rich4.mod`、固定证书公钥 SHA-256 `36778ecf6ef797072560d5cf75777ff508d67a30aa06e15b3e5fabb74e65577d`、V1/V2/V3 签名分 API 验证 success；Artifact `Richman4-MOD-Android-arm64-test-signed-12` ID `12106426495`，到期 2026-10-20 15:52:05 UTC。下载包内 APK 174178431 字节，SHA-256 `26aa2ee56979213afa6ba707553c86f964aaccf31356e4ed5faff5439aaf22ba` 与自带摘要匹配，10 项必需游戏资源/库及 25 MIDI 存在。**Android 真机测试、断电时三文件恢复和旧真实异常贷款档未验证。**

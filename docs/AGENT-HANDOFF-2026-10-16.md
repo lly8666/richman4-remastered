@@ -225,3 +225,9 @@ ctest --test-dir build/ci --output-on-failure --parallel 3
 - `tests/game_tests.cpp::mod_save_load_slot_integrity` 追加：完整 90 亿现金恢复、缺 MOD 拒绝、篡改 MOD 拒绝、原版 DAT 无 MOD 回读、错误侧车拒绝。核心 [CI 39046429771](https://github.com/lly8666/richman4-remastered/actions/runs/39046429771) 的 CTest 36/36 success。Android SDK/SDL3 编译、真实触屏与断电恢复没有由此核心 CI 验收。
 - **下一步**：仅将正确的独立 `qairt-sdk-archive/.github/workflows/build-richman4-android-mod.yml` pin 更新至包含上述修复的 `mod` SHA，确认 versionCode 递增、固定签名指纹、ARM64 库、游戏素材及完整 Android 编译；切勿改 main 版游戏代码或其他旧 MOD 工作流。
 - **依然未解决**：三文件组 `.DAT/.DAT.mod/.rng` 跨文件原子替换；缺少真实用户异常贷款存档；真实 Android 存档槽位/触屏与全种类组合动画测试。不要将本轮“选档过滤”宣传为“跨文件事务已经修好”。
+
+### §17 后续独立 ARM64 APK 实际成功（2026-10-17）
+
+- 源码 `011bae0024df033be92622b98176216118867a0e`（含修复 `16cc57cf` 和测试与交接文档），构建仓库仅 MOD 工作流 pin 更新提交 `44a67274dc644a07299924d825938d0ab21692dc`；Android [#39046665169](https://github.com/lly8666/qairt-sdk-archive/actions/runs/39046665169) **success**，`versionCode=12`，签名公钥指纹仍是 `36778ecf6ef797072560d5cf75777ff508d67a30aa06e15b3e5fabb74e65577d`。Artifact ID `12106426495` / `Richman4-MOD-Android-arm64-test-signed-12`，到期 `2026-10-20T15:52:05Z`。
+- 实际下载并核对 APK：包名 `io.divby0.rich4.mod`，APK 大小 174178431，SHA-256 `26aa2ee56979213afa6ba707553c86f964aaccf31356e4ed5faff5439aaf22ba` 与 `SHA256SUMS.txt` 匹配；10 项必需素材/ARM64 库和 25 MIDI。GitHub 构建记录含 V1/V2/V3 验签 success、持续性密钥加载 success 和准确指纹匹配。**签名密钥从未写入 Git 或报告。**
+- 此后若只补充文字而不改源码，新的纯文档 HEAD 不要求重复打包；必须始终区分“APK 打包的源码 SHA”与“纯文档后续 SHA”。本次没有 Android 真机启动/覆盖安装测试，也没有三文件事务恢复验收。

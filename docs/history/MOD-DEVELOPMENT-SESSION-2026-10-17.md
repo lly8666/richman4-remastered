@@ -68,3 +68,10 @@
 - **修改**：提交 [`16cc57cfced55785c52752b61af869ddd583d129`](https://github.com/lly8666/richman4-remastered/commit/16cc57cfced55785c52752b61af869ddd583d129) 新增 `include/rich4/mod_save_load.hpp`；更新 `tools/native_game.cpp` 存档槽位检查、正式读档入口以及 F9 回退；更新 `tests/game_tests.cpp` 增加合法旧 DAT、MOD 完整加载、损坏与缺失侧车拒绝回归。只更新 `mod`，未动原版 `main` 或股东赠卡语义。
 - **已验证**：[核心 CI #39046429771](https://github.com/lly8666/richman4-remastered/actions/runs/39046429771) 的 `test` job 成功，36/36 CTest 通过。**核心测试未覆盖 SDL3 完整 UI 编译、Android 触屏，也没有真机恢复测试**。
 - **风险**：选档严格校验不等于三文件事务；RNG 在交互读档时有意重新播种，自动回放才读取 `.rng`；缺失旧 MOD 侧车时不能通过饱和 DAT 预览可靠恢复宽资金。用户仍须成套备份 DAT/MOD/RNG。
+
+## 7. 2026-10-17 同轮最终构建、APK 下载及签名/资源二次核验
+
+- 核心 CI [39046429771](https://github.com/lly8666/richman4-remastered/actions/runs/39046429771)：源码代码 `16cc57cf`，36/36 CTest passed。补充交接文档后的源码 SHA `011bae0024df033be92622b98176216118867a0e`，只有文档差异。
+- Android 构建工作流提交 `44a67274dc644a07299924d825938d0ab21692dc` 只改了 MOD 正确工作流的 `RICH4_UPSTREAM_SHA`；新 Android [run 39046665169](https://github.com/lly8666/qairt-sdk-archive/actions/runs/39046665169) **success**，`versionCode=12`（11→12）。完整编译、资产审计、签名、APK 内容检查、Artifact 上传全部成功。该工作流成功时下载的 ZIP artifact 是 `Richman4-MOD-Android-arm64-test-signed-12` / ID `12106426495`，到期 `2026-10-20T15:52:05Z`。
+- 真实下载 APK 174178431 bytes，SHA-256 `26aa2ee56979213afa6ba707553c86f964aaccf31356e4ed5faff5439aaf22ba`，与 Artifact 内 `SHA256SUMS.txt` 一致。独立解码 APK binary AndroidManifest 验证包名 `io.divby0.rich4.mod`、`versionCode=12`，ZIP 检查 10 项必需数据/ARM64 .so 和 25 MIDI。构建日志分别在对应 API 范围用 apksigner 校验 V1、V2、V3 均 true；固定公开签名证书 SHA-256 `36778ecf6ef797072560d5cf75777ff508d67a30aa06e15b3e5fabb74e65577d` 匹配。没有输出或提交秘密值。
+- 本轮修复仅是正确识别缺失/失配附档并过滤不可加载的存档槽、F9 跳过坏 Autosave；**不能自动恢复已经写坏的财务存档**，没有 DAT/MOD/RNG 多文件原子事务。实机 F9、读档界面、Android 安装升级、动画序列与触屏仍待用户实测。下一任 Agent 应以本段源码 SHA / APK SHA 为比对基线，继续实现可恢复的跨文件事务备份和多连续事件回归。
