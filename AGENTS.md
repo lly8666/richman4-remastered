@@ -2,6 +2,8 @@
 
 This file applies to work on the `mod` branch.
 
+**Current quick start: [2026-10-17 Agent takeover prompt](docs/AGENT-TAKEOVER-PROMPT-2026-10-17.md) and [verified development session log](docs/history/MOD-DEVELOPMENT-SESSION-2026-10-17.md).**
+
 **Read [docs/AGENT-HANDOFF-2026-10-16.md](docs/AGENT-HANDOFF-2026-10-16.md) first**, then `docs/mod-README.md` and `docs/history/COMPLETE-DEVELOPMENT-LOG-2026-10-16.md`.
 The handoff is a dated snapshot: fetch the newest `mod` HEAD, CI results and build workflow pin before making changes.
 
@@ -12,3 +14,5 @@ The handoff is a dated snapshot: fetch the newest `mod` HEAD, CI results and bui
 - Android MOD package `io.divby0.rich4.mod` is distinct from vanilla. Reusing a signing certificate requires its persistent private key; never commit secrets.
 - Do not change the already-accepted shareholder gift-card behavior without a specific user request.
 - The latest code and test/build results supersede dated handoff assertions. Clearly label any Android/original-game visual flow not physically verified.
+
+- Latest 2026-10-17 check: signed MOD APK #38997573631 / source 70efe575 used **persistent certificate**; this does not prove device runtime or compatibility with earlier ephemeral-signed APKs. A later Agent must verify again.

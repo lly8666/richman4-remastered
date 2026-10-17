@@ -207,3 +207,13 @@ ctest --test-dir build/ci --output-on-failure --parallel 3
 - **原版例外**：掷骰点数提前决定是 Windows 原版定义，不应为了视觉而把规则 RNG 顺序重排；规则值在 FLC 动画前提交也是原版契约。现保留内存实时结果，纠正对用户的显示顺序。某些原版胜利 AVI 和特殊角色的精确逐帧时间仍 UNVERIFIED，不能说所有动画已完全等价。
 - **签名**：前一成功 APK [38935496368](https://github.com/lly8666/qairt-sdk-archive/actions/runs/38935496368) 使用临时密钥证书 `8b0c6207...`，前前次是 `139486e4...`；不能恢复旧私钥。最新**新的固定** PKCS12（alias `rich4-local-test`，证书 SHA-256 `36778ecf6ef797072560d5cf75777ff508d67a30aa06e15b3e5fabb74e65577d`）保存在本会话用户可下载的私有文件和独立密码文件中，**未入公开 Git**。已在构建仓库 `main` 的仅 MOD APK 工作流加入 GitHub Actions Secrets 必填和公钥指纹核查，删除临时生成新密钥的退路。需要用户设置 `RICH4_KEYSTORE_B64`、`RICH4_KEYSTORE_PASSWORD`，此工具连接无法代填，没配置前的 Workflow 失败是预期安全行为。链接 [签名配置文档](ANDROID-MOD-SIGNING.md)。原版源码 `main` 不可动。
 - **检查结果**：核心 CI [38940321502](https://github.com/lly8666/richman4-remastered/actions/runs/38940321502) 于彩票与破产顺序测试修正后全套通过；本轮最终 Native UI 队列改造在后续 [38940817651](https://github.com/lly8666/richman4-remastered/actions/runs/38940817651) **36/36 success**，需要独立 APK C++ 完整编译。2026-10-17 前后不同工作流的实际 SHA 要一一核对。
+
+
+## 16. 2026-10-17 最新可执行交接：9億/3000萬 UI + 首版固定签名 APK
+
+**权威后续记录**：[开发实录](history/MOD-DEVELOPMENT-SESSION-2026-10-17.md) 和 [可复制新 Agent 提示词](AGENT-TAKEOVER-PROMPT-2026-10-17.md)。本段**覆盖**此前 2026-10-16 的旧 workflow pin / Secret 尚未配置状态。源码代码 HEAD `70efe575fd9032b4ee440924cda9b1ed89d96740`，builder workflow pinned 同一 SHA。原版 `main=f87e8dcaaf6a3fc14c9489829162cf7d0bfeaf7c`，未变。
+
+- `tools/screens/menus.cpp` 现在把开局资金 900000000 显示为 **9億**、30000000 显示为 **3000萬**，原有其余 6 档各用萬单位；金边米色八行列表和选中徽章。真实资金、原版 20 萬默认值都不变；`mod::setup_fund_label` 是纯展示。提交 [70efe575](https://github.com/lly8666/richman4-remastered/commit/70efe575fd9032b4ee440924cda9b1ed89d96740)；核心 [38997529462](https://github.com/lly8666/richman4-remastered/actions/runs/38997529462) **success**。
+- 用户已在 builder 仓库加密 Secrets 配置固定 PKCS12；成功构建 [38997573631](https://github.com/lly8666/qairt-sdk-archive/actions/runs/38997573631) 日志**直接确认**加载保留的私钥、证书 SHA-256 `36778ecf6ef797072560d5cf75777ff508d67a30aa06e15b3e5fabb74e65577d`，`versionCode=11`，APK 资源校验成功。Artifact `Richman4-MOD-Android-arm64-test-signed-11` / ID `12087352928`，到期 `2026-10-20T03:12:16Z`。这是**第一版固定签名 APK**；早期临时签名版本不可直接覆盖。永不把私钥/密码内容提交 Git。
+- 此前动画顺序改造（彩票动画/破产影片/月报在结果通知前，卡片 popup 按真实事件排队）经过核心 CI [38940817651](https://github.com/lly8666/richman4-remastered/actions/runs/38940817651) success，也被同一新版 APK 源码包含；没有 Android 真机逐帧验证。
+- 本轮交接修改仅是文档，**不修改游戏业务规则也不重发 APK**；上面的核心/API 通过和 APK 成功分别对应文档前的代码 SHA。未来的 agent 切勿将 GitHub Actions 编译和签名成功等同于实机测试或旧坏档完全修复。

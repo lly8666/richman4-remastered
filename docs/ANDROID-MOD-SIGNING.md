@@ -21,3 +21,8 @@ GitHub Actions 只有通过 `qairt-sdk-archive` 的仓库加密 Secrets 才使�
 私钥与密码；不要用易忘的生成密钥替换已固定的旧密钥。
 
 升级到新证书前先备份旧应用存档 `.DAT`、`.DAT.mod`、`.rng`。
+
+
+## 2026-10-17 已完成配置并成功固定签名（后续状态覆盖旧段落）
+
+用户已在 `qairt-sdk-archive` 设置两项加密 Secrets，实际 [成功工作流 #38997573631](https://github.com/lly8666/qairt-sdk-archive/actions/runs/38997573631) 的日志显示 `Using retained private key from GitHub Actions encrypted Secrets.`，签名证书 SHA-256 与上面的固定值严格相符，APK `versionCode=11`，artifact `Richman4-MOD-Android-arm64-test-signed-11`。**此日志证明当次 Secrets 工作，不证明可查询或显示其秘密内容**。请勿再次请求用户分享密码或将 .p12 发到公开渠道。采用同一固定证书、同一包名、后继 `versionCode` 才能从这一版继续覆盖升级。旧临时签名 APK 仍不相容。

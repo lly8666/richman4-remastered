@@ -4,6 +4,8 @@
 
 ## 新 Agent 接手
 
+**最新交接（2026-10-17）：** [可直接复制的接手提示词](AGENT-TAKEOVER-PROMPT-2026-10-17.md)、[开发过程与最新 APK/签名验收记录](history/MOD-DEVELOPMENT-SESSION-2026-10-17.md)。源码 `mod` 最新已验证代码 SHA `70efe575fd9032b4ee440924cda9b1ed89d96740`，核心 CI [#38997529462](https://github.com/lly8666/richman4-remastered/actions/runs/38997529462) success，固定签名 Android APK [#38997573631](https://github.com/lly8666/qairt-sdk-archive/actions/runs/38997573631) success。下面的历史 2026-10-16 段落是快照，**其旧 SHA、曾未配置签名 Secrets 的状态不再是当前事实**。
+
 请先看 [全新 Agent 交接说明](AGENT-HANDOFF-2026-10-16.md)（快照日期 2026-10-16）：列明当前 `mod` 提交、真实完成情况、Android 新旧两套工作流、签名/存档风险、64 位耦合清单、CI 与下一步验证。根目录 [AGENTS.md](../AGENTS.md) 是简明入口；交接是定期快照，执行前务必以最新 HEAD 为准。
 
 ## 完整开发历史
@@ -100,3 +102,8 @@ MOD 保留原始 DAT 字节布局；溢出旧字段范围的数据在 DAT 写入
 ### 2026-10-17 开局资金列表视觉优化
 
 “总资金”开局设置保留所有八个真实资金档位和原来的 20 万默认值，但将 `900000000` / `30000000` 的长串数字显示改为 **9億 / 3000萬**；其余档位统一使用 30萬、20萬、10萬、5萬、3萬、1萬。只有界面标签变化，资金金额与游戏平衡没有修改。选中金额改为浅金色徽章，八行下拉表统一米色背景和金色描边，高额 MOD 档位配细金色侧边标识，选择行有清晰的深色高亮。胜利条件预览金额也共用安全的繁体单位格式。
+
+
+## 2026-10-17 首次固定签名打包及开局选项 UI 验证
+
+源码 [70efe575](https://github.com/lly8666/richman4-remastered/commit/70efe575fd9032b4ee440924cda9b1ed89d96740) 将开局 900,000,000 和 30,000,000 显示为 **9億**、**3000萬**，其余六档统一萬单位，金色高资金档标识与选中高亮；保留 20 萬默认值和全部精确金额。CI [38997529462](https://github.com/lly8666/richman4-remastered/actions/runs/38997529462) 成功。Android workflow [38997573631](https://github.com/lly8666/qairt-sdk-archive/actions/runs/38997573631) 成功，APK `versionCode=11`，固定签名证书校验通过。Artifact `Richman4-MOD-Android-arm64-test-signed-11` 仅在到期 `2026-10-20T03:12:16Z` 前可下载。此前临时签名版不可直接覆盖。**没有真机界面截图或长时间运行验收。** 更多细节及未完成项请看 [开发实录](history/MOD-DEVELOPMENT-SESSION-2026-10-17.md)。

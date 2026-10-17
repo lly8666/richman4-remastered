@@ -1,5 +1,5 @@
 # 《大富翁4》原版重构与 MOD：开发全历史和可核查索引
-更新：2026-10-16。本记录收录 **截至 `ea822b90c6c8dbead9d07f9c4f1c4c8475365b6c` 的 383 条可达 Git 提交记录**，由远端提交历史自动汇总；它不是声称能够复原没有落入 Git 的私人聊天、临时调试或丢失的构建产物。
+更新：2026-10-17。本记录收录 **截至 `70efe575fd9032b4ee440924cda9b1ed89d96740` 的 385 条可达 Git 提交记录**，由远端提交历史自动汇总；它不是声称能够复原没有落入 Git 的私人聊天、临时调试或丢失的构建产物。
 
 ## 一、项目与分支
 - 源代码：[richman4-remastered](https://github.com/lly8666/richman4-remastered)；标准重构 `main` 用于尽力贴合 Windows 大富翁4 v3.11。
@@ -29,18 +29,26 @@
 - **交付构建路径**：原版独立 Android workflow 不应修改其源码 SHA；另建 `build-richman4-android-mod.yml` 独立打包 `io.divby0.rich4.mod`，并在构建成功后核对 APK。
 - **近期改动**：后续若需更新历史附录，按 GitHub API 当前 `mod` 所有可达 commits 重建；此处正文保留历史决策以供追溯。
 
+## 三点二、2026-10-17 事件顺序、长金额 UI、持久签名与开局资金美化
+
+- [本轮详细开发实录](MOD-DEVELOPMENT-SESSION-2026-10-17.md) 已补充从股票高金额/卡片与商店修复，至 ECON-4、事件动画顺序、64 位 ATM、中文简写和 9億/3000萬 金色菜单，以及首次固定签名 APK 的真实状态、日志和未解决问题。
+- `mod` 最新验收代码 `70efe575fd9032b4ee440924cda9b1ed89d96740`、核心 [38997529462](https://github.com/lly8666/richman4-remastered/actions/runs/38997529462) success、Android [38997573631](https://github.com/lly8666/qairt-sdk-archive/actions/runs/38997573631) success。专门测试失败后修正的过程仍保存在 Git 提交历史和 Actions runs 中，不删除实验失败的记录。
+- 历史索引列出截至此**代码** SHA 的 385 个可达提交；为避免文档自引用悖论，本次后续文档提交自己不在该静态索引中。后继 Agent 应对最新 `mod` 重新取可达提交列表。
+
 ## 三、已知未完成与风险
 - 上述修复有源码/CI 依据，但并非所有地格、卡片、新闻、神明特效都已在实体 Android 与原 Windows EXE 双画面对齐。换地换屋双目标飞卡/闪烁、核弹白化与某些设置页面仍有已记录缺口。
 - 原 DAT 道具数量只有 8 bit，股票流通量含 16-bit 字段，资金/持仓和原 API 多为 32 bit。MOD 的宽额交易/资产必须对**内存、UI、数值计算、旧存档序列化、侧车一致性、回档、卖出股权和 AI 逻辑**一起实施；只改上限可能造成资产回绕为负数。
 - 原始游戏点券 16 bit，MOD 已让大笔道具销售点券饱和于 65535；是否继续拓宽属于另一个独立兼容性决策。
 - 此文档的附录提供所有可核查提交。分支继续演进时可按同一 GitHub API 列表重新生成附录，不要错误称其自动实时更新。
 
-## 四、提交历史附录（截至 ea822b90c6c8，按新到旧）
+## 四、提交历史附录（截至 70efe575fd90，按新到旧）
 
 以下包含本轮资金/股市增容、编译失败及随后的修正；每条均链接到不可变的完整 Git commit。
 
 | 日期 (UTC) | 完整提交链接（短 SHA） | 变更标题 |
 |---|---|---|
+| 2026-10-17 | [`70efe575fd90`](https://github.com/lly8666/richman4-remastered/commit/70efe575fd9032b4ee440924cda9b1ed89d96740) | MOD UI: elegant 9億 and 3000萬 setup amounts with gold eight-row picker and exact unit regressions |
+| 2026-10-17 | [`d306a8830341`](https://github.com/lly8666/richman4-remastered/commit/d306a8830341b7cffe1590f1d53f5b8fee237f6e) | MOD docs: audit original movie/result chronology and document safe stable Android signing |
 | 2026-10-16 | [`ea822b90c6c8`](https://github.com/lly8666/richman4-remastered/commit/ea822b90c6c8dbead9d07f9c4f1c4c8475365b6c) | MOD presentation: queue card popups only at their own event, block later outcomes until art completes |
 | 2026-10-16 | [`cf4a5d0b8e44`](https://github.com/lly8666/richman4-remastered/commit/cf4a5d0b8e4420e66da80f632ed4168dc7db5921) | MOD tests: verify lottery on day 15 and month report on calendar rollover |
 | 2026-10-16 | [`82e7ccc8dbba`](https://github.com/lly8666/richman4-remastered/commit/82e7ccc8dbbaec6087c385fdde910c3e0b627587) | MOD: defer lottery, bankruptcy and month-end result notices until their original movies finish |
