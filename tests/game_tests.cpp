@@ -4,7 +4,7 @@
 #include <bit>
 #include "rich4/calendar.hpp"
 #include "rich4/game.hpp"
-#include "rich4/mod_save.hpp"
+#include "rich4/mod_save_load.hpp"
 #include "rich4/mod_rules.hpp"
 #include "rich4/mod_money_format.hpp"
 #include "rich4/gods.hpp"
@@ -14,6 +14,7 @@
 #include "rich4/world.hpp"
 
 #include <algorithm>
+#include <optional>
 #include <functional>
 #include <iostream>
 #include <stdexcept>
@@ -2133,11 +2134,53 @@ void landing_pauses() {
             }) && after.back().kind == rich4::EffectKind::pause && after.back().after_events == events.size(),
             "property landing must hold 8 ticks after the purchase, before the next player");
 }
+// MOD slots must reject a DAT whose separate ledger was lost or mismatched.
+// The same decoder is used by the UI slot list, quick-load, and actual load.
+void mod_save_load_slot_integrity() {
+    auto value = world();
+    value.players[0].state.cash = INT64_C(9000000000);
+    auto dat = value.export_save();
+    rich4::mod::mark_mod_save(dat);
+    const auto extension = rich4::mod::encode_tool_extension(value, dat);
+    const auto restored = rich4::mod::decode_checked_mod_save(dat, extension);
+    require(restored.players[0].state.cash == INT64_C(9000000000),
+            "validated MOD save restores actual 64-bit cash");
+    auto rejected = [](const auto &bytes, std::optional<std::string_view> sidecar) {
+        try { (void)rich4::mod::decode_checked_mod_save(bytes, sidecar); }
+        catch (const rich4::SaveError &) { return true; }
+        return false;
+    };
+    require(rejected(dat, std::nullopt),
+            "companion-required DAT cannot become a valid slot without .mod");
+    auto damaged = extension;
+    damaged[0] = 'X';
+    require(rejected(dat, std::string_view(damaged)),
+            "corrupted MOD ledger cannot become a valid slot");
+    // Unmodified original DAT files stay usable without a companion.
+    auto vanilla = world();
+    for (auto &stock : vanilla.stocks) {
+        stock.shares_available = 100;
+        stock.flags_10 = 10;
+    }
+    for (auto &player : vanilla.players)
+        for (auto &count : player.state.tool_amounts)
+            count = std::min<std::uint16_t>(count, 9);
+    const auto original_dat = vanilla.export_save();
+    require(!rich4::mod::requires_mod_sidecar(original_dat),
+            "original DAT must have no MOD-required marker");
+    const auto original = rich4::mod::decode_checked_mod_save(original_dat);
+    require(original.players.size() == vanilla.players.size(),
+            "low-value original DAT remains importable");
+    require(rejected(original_dat, std::string_view(extension)),
+            "stale MOD companion must not be silently ignored for an original DAT");
+}
+
 int main() {
     try {
         landing_pauses();
         mod_tool_save_and_fixed_inflation();
         mod_card_stacks_save_roundtrip();
+        mod_save_load_slot_integrity();
         mod_wide_economy_save_roundtrip();
         dice_and_paths();
         dice_effect_is_presentation_only();

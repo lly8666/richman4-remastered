@@ -17,7 +17,7 @@
 #include "rich4/direction.hpp"
 #include "rich4/game.hpp"
 #include "rich4/mod_rules.hpp"
-#include "rich4/mod_save.hpp"
+#include "rich4/mod_save_load.hpp"
 #include "rich4/random.hpp"
 #include "rich4/services.hpp"
 #include "rich4/stocks.hpp"
@@ -538,7 +538,7 @@ class Application {
                     if (event.key.key == SDLK_F5 && session_ && session_->can_save())
                         save();
                     if (event.key.key == SDLK_F9 && fs::exists(load_path()))
-                        load(load_path());
+                        load_latest_valid_slot();
                 }
             }
             const auto now = SDL_GetTicks();
@@ -827,14 +827,26 @@ class Application {
     fs::path slot_path(int slot) const {
         return options_.save_directory / (slot == 0 ? std::string("Autosave.DAT") : "Save" + std::to_string(slot) + ".DAT");
     }
+    // Validate the full ledger before marking a slot loadable. A valid DAT
+    // header alone says nothing about a missing or stale ECON-4 sidecar.
+    World read_world(const fs::path &path) const {
+        const auto bytes = ui::read_file(path);
+        const auto companion = path.string() + ".mod";
+        if (fs::exists(companion)) {
+            const auto extension = ui::read_file(companion);
+            return mod::decode_checked_mod_save(
+                bytes, std::string_view(reinterpret_cast<const char *>(extension.data()), extension.size()));
+        }
+        return mod::decode_checked_mod_save(bytes);
+    }
     std::array<screens::SaveSlot, 6> read_slots() const {
         std::array<screens::SaveSlot, 6> slots{};
         for (int slot = 0; slot < 6; ++slot) {
             try {
                 if (!fs::exists(slot_path(slot)))
                     continue;
-                const auto save = SaveFile::decode(ui::read_file(slot_path(slot)));
-                const auto header = save.header();
+                const auto loaded = read_world(slot_path(slot));
+                const auto &header = loaded.header;
                 if (header.signature != 0x26)
                     continue;
                 auto &entry = slots[std::size_t(slot)];
@@ -843,7 +855,7 @@ class Application {
                 entry.map = header.map_id;
                 entry.stage = header.stage_id;
                 for (std::size_t player = 0; player < std::min<std::uint32_t>(header.player_count, 4); ++player)
-                    entry.characters.push_back(save.player(player).character);
+                    entry.characters.push_back(loaded.players.at(player).state.character);
             } catch (const std::exception &) {
             }
         }
@@ -1039,7 +1051,6 @@ class Application {
     }
     bool load(const fs::path &path) {
         try {
-            const auto bytes = ui::read_file(path);
             auto seed = options_.seed;
             if (options_.headless || options_.auto_rounds) {
                 // Deterministic automation/replays keep the previous native RNG
@@ -1059,31 +1070,7 @@ class Application {
                     std::chrono::steady_clock::now().time_since_epoch()).count();
                 seed = load_seeds_.next(static_cast<std::uint32_t>(uptime_ms));
             }
-            auto loaded = World::from_save(SaveFile::decode(bytes));
-            // Read the 16-bit MOD tool inventory only when the sidecar belongs
-            // to this exact DAT. Reject stale/corrupt companions rather than
-            // silently replacing counts from a different save.
-            if (fs::exists(path.string() + ".mod")) {
-                const auto extension = ui::read_file(path.string() + ".mod");
-                mod::apply_tool_extension(loaded, bytes,
-                                          std::string_view(reinterpret_cast<const char *>(extension.data()),
-                                                           extension.size()));
-            } else {
-                // 65535 market supply is impossible in an unmodified Richman4
-                // DAT (the entire original share universe is 10000). It is a
-                // saturated MOD preview: without its companion, the real
-                // multi-million share counters cannot safely be reconstructed.
-                const bool missing_wide_ledger =
-                    std::any_of(loaded.stocks.begin(), loaded.stocks.end(), [](const auto &stock) {
-                        return stock.shares_available == UINT16_MAX || stock.flags_10 == UINT16_MAX;
-                    }) ||
-                    std::any_of(loaded.players.begin(), loaded.players.end(), [](const auto &player) {
-                        return std::any_of(player.state.tool_amounts.begin(), player.state.tool_amounts.end(),
-                                           [](auto count) { return count > 9; });
-                    });
-                if (missing_wide_ledger || mod::requires_mod_sidecar(bytes))
-                    throw SaveError("MOD DAT requires its matching .DAT.mod financial companion");
-            }
+            auto loaded = read_world(path);
             install_session(std::move(loaded), seed);
             audio_->select_music(0); // AUDIO: loading moves on to the next playlist track (save_load.asm:978)
             music_director_.forget();
@@ -1099,6 +1086,35 @@ class Application {
             std::cerr << "Load failed: " << error.what() << '\n';
             return false;
         }
+    }
+    // F9/quick continue skips a newer but incomplete autosave instead of
+    // obscuring the last valid manual slot. Explicitly selected files still
+    // fail visibly rather than silently switching to another game.
+    bool load_latest_valid_slot() {
+        if (!options_.load.empty())
+            return load(options_.load);
+        std::vector<fs::path> candidates;
+        for (int slot = 0; slot <= 5; ++slot)
+            if (fs::exists(slot_path(slot)))
+                candidates.push_back(slot_path(slot));
+        std::stable_sort(candidates.begin(), candidates.end(), [](const auto &a, const auto &b) {
+            std::error_code ea, eb;
+            const auto ta = fs::last_write_time(a, ea), tb = fs::last_write_time(b, eb);
+            return !ea && (eb || ta > tb);
+        });
+        for (const auto &candidate : candidates) {
+            try {
+                (void)read_world(candidate);
+            } catch (const std::exception &) {
+                continue;
+            }
+            if (load(candidate))
+                return true;
+        }
+        load_failed_ = true;
+        toast_ = "沒有可用的完整存檔";
+        toast_until_ = SDL_GetTicks() + 3500;
+        return false;
     }
     void save() {
         if (!session_ || !session_->can_save())
