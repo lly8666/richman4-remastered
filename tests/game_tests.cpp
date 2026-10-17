@@ -594,6 +594,22 @@ void mod_frame_card_event_preview_order() {
     }
     require(found, "fixture must reach an active framing prompt");
 }
+void mod_starting_fund_display_regression() {
+    using rich4::mod::setup_fund_label;
+    require(setup_fund_label(900'000'000) == "9億" &&
+                setup_fund_label(30'000'000) == "3000萬",
+            "MOD 900m and 30m start selections must be short Traditional Chinese labels");
+    require(setup_fund_label(300'000) == "30萬" &&
+                setup_fund_label(200'000) == "20萬" &&
+                setup_fund_label(100'000) == "10萬" &&
+                setup_fund_label(50'000) == "5萬" &&
+                setup_fund_label(30'000) == "3萬" &&
+                setup_fund_label(10'000) == "1萬",
+            "all eight initial funds must use consistent traditional accounting units");
+    require(setup_fund_label(90'000'000'000LL) == "900億" &&
+                setup_fund_label(1'500'000'000LL) == "15億",
+            "victory target amounts use exact units without signed32 narrowing");
+}
 void mod_compact_money_format() {
     using rich4::mod::compact_money;
     require(compact_money(42) == "$42" &&
@@ -2133,6 +2149,7 @@ int main() {
         alliance_rent();
         mod_wide_funds_toll_frame_trigger();
         mod_frame_card_event_preview_order();
+        mod_starting_fund_display_regression();
         mod_compact_money_format();
         mod_64bit_bank_deposit_and_withdraw();
         bank_and_failure();

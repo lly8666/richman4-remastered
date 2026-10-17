@@ -19,6 +19,20 @@ inline std::string grouped_digits(std::int64_t amount) {
 
 // One or two fractional digits in Chinese financial units. The approximate
 // glyph is shown ONLY if sub-display-unit digits would otherwise be hidden.
+// New-game setup uses Traditional Chinese labels and exact integer units.
+// In particular, 900000000 and 30000000 must fit the 124-pixel dropdown
+// as "9億" and "3000萬" without changing their actual game balances.
+inline std::string setup_fund_label(std::int64_t amount) {
+    if (amount >= 100'000'000 && amount % 10'000 == 0) {
+        const auto yi = amount / 100'000'000;
+        const auto wan = (amount % 100'000'000) / 10'000;
+        return std::to_string(yi) + "億" +
+               (wan ? std::to_string(wan) + "萬" : std::string{});
+    }
+    if (amount >= 10'000 && amount % 10'000 == 0)
+        return std::to_string(amount / 10'000) + "萬";
+    return grouped_digits(amount);
+}
 inline std::string compact_money(std::int64_t amount, bool dollar = true) {
     const std::uint64_t magnitude = amount < 0 ? std::uint64_t(-(amount + 1)) + 1
                                               : std::uint64_t(amount);

@@ -101,13 +101,13 @@ std::string item_label(int row, int index, int fund_index) {
     case 0:
         return std::array{"二人", "三人", "四人"}[std::size_t(index)];
     case 1:
-        return std::to_string(funds[std::size_t(index)]);
+        return mod::setup_fund_label(funds[std::size_t(index)]);
     case 2:
         return std::array{"步行", "機車", "汽車"}[std::size_t(index)];
     case 5:
         return index == 0 ? "無限"
-                          : std::to_string(std::int64_t(funds[std::size_t(fund_index)]) *
-                                           victory_multipliers[std::size_t(index)]);
+                          : mod::setup_fund_label(std::int64_t(funds[std::size_t(fund_index)]) *
+                                                  victory_multipliers[std::size_t(index)]);
     default:
         return periods[std::size_t(index)];
     }
@@ -231,9 +231,19 @@ void NewGameSetup::draw(Host &host, const std::function<void(const NewGameChoice
     for (int row = 0; row < 6; ++row) {
         const int y = 238 + 36 * row;
         text(frame, setting_labels[std::size_t(row)], 453 + sx, y, 5, row_supported(row) ? label : grey_label);
-        text(frame, item_label(row, values_[std::size_t(row)], values_[1]), 600 + sx, y, 6,
-             row == 1 ? Style{12, 0x101010, 0x101010, bold}
-                      : row_supported(row) ? value : grey_value);
+        if (row == 1) {
+            // Clean selected amount chip, matching the high-value entries in
+            // the dropdown. The smaller exact label no longer overflows its
+            // original ~70px cell, and all other setup sprites stay intact.
+            const graphics::Rect chip{531 + sx, y - 13, 601 + sx, y + 13};
+            ui::fill(frame.canvas, chip, rgb(0xf8e9c8));
+            ui::border(frame.canvas, chip, rgb(0xae8743));
+            text(frame, item_label(row, values_[std::size_t(row)], values_[1]),
+                 594 + sx, y, 6, Style{16, 0x62431b, 0x101010, bold});
+        } else {
+            text(frame, item_label(row, values_[std::size_t(row)], values_[1]),
+                 600 + sx, y, 6, row_supported(row) ? value : grey_value);
+        }
     }
     const bool pressing = frame.pointer_down && !busy() && dropdown_ < 0;
     if (pressing && frame.pointer_in({456, 176, 536, 216}) && !picks_.empty())
@@ -259,19 +269,39 @@ void NewGameSetup::draw(Host &host, const std::function<void(const NewGameChoice
     if (dropdown_ >= 0) {
         const auto &list = dropdown_rects[std::size_t(dropdown_)];
         frame.picture('j', 8, dropdown_frames[std::size_t(dropdown_)], list.left, list.top);
-        if (dropdown_ == 1) // MOD has eight amounts; the legacy frame only has six rows.
-            ui::fill(frame.canvas, {list.left, list.top + 138, list.right, list.bottom},
-                     rgb(0xf0ead0));
+        if (dropdown_ == 1) {
+            // The original six-row artwork cannot contain eight MOD amounts.
+            // Overlay a full-height, paper-and-gold menu rather than leaving
+            // a mismatched patch on the bottom two rows.
+            ui::fill(frame.canvas, list, rgb(0xf9f0de));
+            ui::border(frame.canvas, list, rgb(0xa88248));
+        }
         const int width = list.right - list.left;
         for (int n = 0; n < item_count(dropdown_); ++n) {
             const graphics::Rect item{list.left + 2, list.top + 2 + 23 * n, list.left + 2 + width - 3,
                                       list.top + 22 + 23 * n};
             const bool lit = frame.pointer_in(item);
-            if (lit)
-                ui::fill(frame.canvas, item, rgb(0xaa0000));
-            text(frame, item_label(dropdown_, n, values_[1]), list.right - 2, list.top + 13 + 23 * n, 6,
-                 lit ? Style{dropdown_ == 1 ? 13 : 15, 0xffffff, 0x101010, bold}
-                     : Style{dropdown_ == 1 ? 13 : 15, 0x101010, 0x101010, bold});
+            if (dropdown_ == 1) {
+                const bool selected = values_[1] == n;
+                ui::fill(frame.canvas, item,
+                         lit ? rgb(0x35516a) : selected ? rgb(0xf0dab0)
+                             : n < 2 ? rgb(0xfff5e3) : rgb(0xf9f0de));
+                if (n < 2) // Refined gold strip for the two MOD wealth tiers.
+                    ui::fill(frame.canvas, {item.left + 2, item.top + 4,
+                                            item.left + 6, item.bottom - 3}, rgb(0xb98b42));
+                if (selected && !lit)
+                    ui::border(frame.canvas, item, rgb(0xbd954e));
+                text(frame, item_label(dropdown_, n, values_[1]),
+                     list.right - 10, list.top + 13 + 23 * n, 6,
+                     Style{16, lit ? 0xffefd1U : 0x553a1dU, 0x101010U, bold});
+            } else {
+                if (lit)
+                    ui::fill(frame.canvas, item, rgb(0xaa0000));
+                text(frame, item_label(dropdown_, n, values_[1]),
+                     list.right - 2, list.top + 13 + 23 * n, 6,
+                     lit ? Style{15, 0xffffff, 0x101010, bold}
+                         : Style{15, 0x101010, 0x101010, bold});
+            }
             hit(host, ids::setup_item + n, item, click_sound, [this, n] {
                 values_[std::size_t(dropdown_)] = n;
                 if (dropdown_ == 0 && int(picks_.size()) > n + 2)
