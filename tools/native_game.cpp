@@ -1643,7 +1643,9 @@ class Application {
         // worker/monster/demolition movie, even while an earlier bubble is shown.
         std::vector<EffectEvent> future_building_effects;
         for (const auto &step : presentation_)
-            if (step.effect && (step.effect->has_previous_property || step.effect->kind == EffectKind::god_appear))
+            if (step.effect && (step.effect->has_previous_property ||
+                                !step.effect->previous_properties.empty() ||
+                                step.effect->kind == EffectKind::god_appear))
                 future_building_effects.push_back(*step.effect);
         effects_.set_future_effects(std::move(future_building_effects));
         for (auto step = presentation_.rbegin(); step != presentation_.rend(); ++step) {

@@ -217,6 +217,16 @@ struct GameSession::Impl {
         movie.previous_type = previous->type;
         movie.has_previous_property = true;
     }
+    // Collect every affected property's pre-rule appearance without changing RNG.
+    void effect_before_properties(EffectEvent &movie, const std::vector<std::uint16_t> &codes) {
+        for (const auto code : codes) {
+            if (std::any_of(movie.previous_properties.begin(), movie.previous_properties.end(),
+                            [code](const auto &p) { return p.code == code; }))
+                continue;
+            if (const auto p = property_appearance(code))
+                movie.previous_properties.push_back({code, p->owner, p->level, p->type});
+        }
+    }
     void remember_card_appearance(std::uint16_t code) {
         if (!appearance_before_card)
             appearance_before_card = property_appearance(code);
@@ -2565,6 +2575,15 @@ struct GameSession::Impl {
         callbacks.news_picture = [this](auto id, auto code) { // camera on the hit property
             effect(EffectKind::news_movie, actor(), property_point(code), code);
             effects.back().object_kind = id;
+            // The picture callback is made before the destructive news rule.
+            // Retain all plots in a disaster radius (not only the centre).
+            if (id == 4 || id == 20) {
+                const auto pos = property_point(code);
+                effect_before_properties(effects.back(),
+                    instance_codes(static_cast<std::uint16_t>(pos.x),
+                                   static_cast<std::uint16_t>(pos.y), 100));
+            } else
+                effect_before_property(effects.back(), property_appearance(code));
         };
         callbacks.set_loan_due_date = [this](auto slot) { set_loan_due_date(slot); };
         callbacks.choose_card = [this](auto slot, auto victim) { return choose_victim_card(slot, victim); };
@@ -2946,6 +2965,9 @@ struct GameSession::Impl {
             // EffectPlayer retains the pre-hit board until the movie's commit frame.
             effect(nuclear ? EffectKind::nuclear_missile : EffectKind::missile, slot, {point.x, point.y},
                    code > 2000 && code < 6000 ? code : 0);
+            effect_before_properties(effects.back(),
+                instance_codes(static_cast<std::uint16_t>(point.x),
+                               static_cast<std::uint16_t>(point.y), nuclear ? -1 : 100));
             area_damage(static_cast<std::uint16_t>(point.x), static_cast<std::uint16_t>(point.y),
                         nuclear ? 1 : 0, true, static_cast<int>(slot), nuclear ? -1 : 100);
         };

@@ -272,6 +272,12 @@ struct EffectPoint {
     std::int32_t x = 0, y = 0; // Original world coordinates (same space as board::Point).
     bool operator==(const EffectPoint &) const = default;
 };
+struct EffectPropertyBefore {
+    std::uint16_t code = 0;
+    std::uint8_t owner = 0, level = 0, type = 0;
+    bool operator==(const EffectPropertyBefore &) const = default;
+};
+// Pure visual metadata, never serialized into the original DAT.
 struct EffectEvent {
     EffectKind kind;
     std::size_t player = 0;                         // actor
@@ -295,6 +301,8 @@ struct EffectEvent {
     // original commit frame. Also allows earlier queued speech/cards to draw it.
     std::uint8_t previous_owner = 0;
     bool has_previous_property = false;
+    // All plots changed by a movie (one news/disaster can damage many).
+    std::vector<EffectPropertyBefore> previous_properties{};
     bool operator==(const EffectEvent &) const = default;
 };
 

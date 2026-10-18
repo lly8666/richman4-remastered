@@ -415,9 +415,10 @@ EventResult apply_news_id(World &world, Random &random, std::uint8_t id, const E
         if (candidates.empty())
             return missing(id, "a valid disaster target");
         const auto property = choose(candidates, random);
-        callbacks.area_damage(property.x, property.y, id == 4 ? 1 : 0, id == 4);
+        // Capture the visible houses before the area rule destroys them.
         if (callbacks.news_picture)
             callbacks.news_picture(id, property.code);
+        callbacks.area_damage(property.x, property.y, id == 4 ? 1 : 0, id == 4);
         auto result = done(id, id == 4 ? "新闻：灾害袭击，区域受损" : "新闻：地震，区域建筑降级");
         result.property = property.code;
         return result;
@@ -429,9 +430,9 @@ EventResult apply_news_id(World &world, Random &random, std::uint8_t id, const E
         if (candidates.empty())
             return missing(id, "a built ordinary land (original event 15 otherwise divides by zero)");
         const auto property = choose(candidates, random);
-        destroy_property(world, property.code, id == 5 || id == 19);
         if (id != 19 && callbacks.news_picture)
             callbacks.news_picture(id, property.code);
+        destroy_property(world, property.code, id == 5 || id == 19);
         if (property.owner != 0)
             voice(callbacks, property.owner - 1, static_cast<std::uint8_t>(3 + (random.next() & 1)));
         auto result =

@@ -241,20 +241,24 @@ void apply_pending_actors(std::vector<board::PlayerSprite> &players, const World
 
 void restore_pre_movie_property(std::vector<board::PropertyState> &lands,
                                 std::vector<board::PropertyState> &facilities, const EffectEvent &effect) {
-    if (!effect.has_previous_property)
-        return;
-    const bool facility = effect.property > 4000 && effect.property < 6000;
-    if (!facility && !(effect.property > 2000 && effect.property < 4000))
-        return;
-    auto &list = facility ? facilities : lands;
-    const auto id = std::uint32_t(effect.property - (facility ? 4000 : 2000));
-    for (auto &plot : list)
-        if (plot.id == id) {
-            plot.owner = effect.previous_owner;
-            plot.level = effect.previous_level;
-            plot.type = effect.previous_type;
-            break;
-        }
+    const auto restore = [&](std::uint16_t code, std::uint8_t owner, std::uint8_t level, std::uint8_t type) {
+        const bool facility = code > 4000 && code < 6000;
+        if (!facility && !(code > 2000 && code < 4000))
+            return;
+        auto &list = facility ? facilities : lands;
+        const auto id = std::uint32_t(code - (facility ? 4000 : 2000));
+        for (auto &plot : list)
+            if (plot.id == id) {
+                plot.owner = owner;
+                plot.level = level;
+                plot.type = type;
+                break;
+            }
+    };
+    if (effect.has_previous_property)
+        restore(effect.property, effect.previous_owner, effect.previous_level, effect.previous_type);
+    for (const auto &p : effect.previous_properties)
+        restore(p.code, p.owner, p.level, p.type);
 }
 
 void EffectPlayer::remember(const World &world, const void *owner, std::uint64_t ticks) {

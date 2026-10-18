@@ -4,6 +4,7 @@
 #include <bit>
 #include "rich4/calendar.hpp"
 #include "rich4/game.hpp"
+#include "rich4/events.hpp"
 #include "rich4/mod_save_load.hpp"
 #include "rich4/mod_rules.hpp"
 #include "rich4/mod_money_format.hpp"
@@ -2175,6 +2176,74 @@ void mod_save_load_slot_integrity() {
             "stale MOD companion must not be silently ignored for an original DAT");
 }
 
+
+void mod_building_movie_and_speech_regressions() {
+    // News originally queued the movie AFTER damage, so the modern board
+    // showed the final building before flashing back to the film's snapshot.
+    for (unsigned id : {4U, 5U, 15U, 20U, 21U}) {
+        auto value = world();
+        value.lands[1].x = 250;
+        value.lands[1].y = 160;
+        value.lands[1].economy.owner_code = 2;
+        value.lands[1].economy.level = 3;
+        rich4::Random random(5);
+        bool captured = false, damaged = false;
+        rich4::EventCallbacks cb;
+        cb.news_picture = [&](std::uint8_t movie, std::uint16_t code) {
+            captured = movie == id && code == 2001 && value.lands[1].economy.level == 3;
+        };
+        cb.area_damage = [&](std::uint16_t, std::uint16_t, std::uint8_t, bool) {
+            require(captured, "disaster mutated before movie pre-state capture");
+            value.lands[1].economy.level = 0;
+            damaged = true;
+        };
+        auto result = rich4::apply_news_id(value, random, static_cast<std::uint8_t>(id), cb);
+        require(result.supported && captured, "news movie lost original building");
+        require(id == 4 || id == 20 ? damaged : value.lands[1].economy.level < 3,
+                "news building damage failed");
+    }
+    for (unsigned tool : {7U, 13U}) {
+        auto value = world(4, 2);
+        value.lands[1].x = 250; value.lands[1].y = 160;
+        value.lands[1].economy.owner_code = 2; value.lands[1].economy.level = 3;
+        auto &second = value.lands[2];
+        second.id = 2; second.x = 280; second.y = 160;
+        second.economy.owner_code = 3; second.economy.level = 4;
+        auto &facility = value.facilities[1];
+        facility.id = 1; facility.x = 310; facility.y = 160;
+        facility.owner_code = 2; facility.level = 3; facility.facility_type = 2;
+        value.players[0].state.tool_amounts[tool-1] = 1;
+        rich4::GameSession game(std::move(value), 9);
+        const auto rng = game.random_state();
+        require(game.use_tool(tool, 2001), "house-targeted missile not accepted");
+        const auto effects = game.drain_effects();
+        const auto it = std::find_if(effects.begin(), effects.end(), [tool](const auto &e) {
+            return e.kind == (tool == 7 ? rich4::EffectKind::missile : rich4::EffectKind::nuclear_missile);
+        });
+        require(it != effects.end(), "missing missile house movie");
+        const auto contains = [&](unsigned code, unsigned level) {
+            return std::count_if(it->previous_properties.begin(), it->previous_properties.end(),
+                [=](const auto &p) { return p.code == code && p.level == level; }) == 1;
+        };
+        require(contains(2001,3) && contains(2002,4) && contains(4001,3),
+                "missile must capture ALL old neighbouring houses before blast");
+        require(game.random_state() == rng, "visual house snapshots consumed rule RNG");
+    }
+    // Reward voice slots are 6..8, adverse payment voices 9..11.
+    for (const auto [id, positive] : {std::pair{25U,true}, std::pair{17U,false}}) {
+        auto value=world();
+        rich4::Random random(5);
+        std::vector<std::uint8_t> heard;
+        rich4::EventCallbacks cb;
+        cb.pay=[](std::int32_t,std::int32_t,std::int64_t,std::uint32_t){};
+        cb.voice=[&](std::size_t,std::uint8_t slot){ heard.push_back(slot); };
+        const auto result=rich4::apply_fortune_id(value,random,0,static_cast<std::uint8_t>(id),cb);
+        require(result.supported && !heard.empty(), "money fortune did not speak");
+        require(std::all_of(heard.begin(),heard.end(),[positive](auto slot) {
+            return positive ? (slot>=6 && slot<=8) : (slot>=9 && slot<=11);
+        }),"lucky money and negative money speech were inverted");
+    }
+}
 int main() {
     try {
         landing_pauses();
@@ -2187,6 +2256,7 @@ int main() {
         parachute_marks_a_spawned_player();
         tool_and_card_effects();
         missile_presentation_order();
+        mod_building_movie_and_speech_regressions();
         land_god_own_upgrade();
         property_and_rent();
         alliance_rent();
