@@ -75,3 +75,12 @@
 - Android 构建工作流提交 `44a67274dc644a07299924d825938d0ab21692dc` 只改了 MOD 正确工作流的 `RICH4_UPSTREAM_SHA`；新 Android [run 39046665169](https://github.com/lly8666/qairt-sdk-archive/actions/runs/39046665169) **success**，`versionCode=12`（11→12）。完整编译、资产审计、签名、APK 内容检查、Artifact 上传全部成功。该工作流成功时下载的 ZIP artifact 是 `Richman4-MOD-Android-arm64-test-signed-12` / ID `12106426495`，到期 `2026-10-20T15:52:05Z`。
 - 真实下载 APK 174178431 bytes，SHA-256 `26aa2ee56979213afa6ba707553c86f964aaccf31356e4ed5faff5439aaf22ba`，与 Artifact 内 `SHA256SUMS.txt` 一致。独立解码 APK binary AndroidManifest 验证包名 `io.divby0.rich4.mod`、`versionCode=12`，ZIP 检查 10 项必需数据/ARM64 .so 和 25 MIDI。构建日志分别在对应 API 范围用 apksigner 校验 V1、V2、V3 均 true；固定公开签名证书 SHA-256 `36778ecf6ef797072560d5cf75777ff508d67a30aa06e15b3e5fabb74e65577d` 匹配。没有输出或提交秘密值。
 - 本轮修复仅是正确识别缺失/失配附档并过滤不可加载的存档槽、F9 跳过坏 Autosave；**不能自动恢复已经写坏的财务存档**，没有 DAT/MOD/RNG 多文件原子事务。实机 F9、读档界面、Android 安装升级、动画序列与触屏仍待用户实测。下一任 Agent 应以本段源码 SHA / APK SHA 为比对基线，继续实现可恢复的跨文件事务备份和多连续事件回归。
+
+## 7. 2026-10-18 新一轮房屋/人物声音审计
+
+本轮针对用户最新反馈复查全部 `EffectKind` 房屋动画、新闻区域毁损、道具和好/坏神、正负命运/新闻话语。详见 [逐项矩阵](../audit/MOD-HOUSE-MOVIE-SPEECH-AUDIT-2026-10-18.md)。
+
+1. 源码 `mod` 提交 [`fbc7da72`](https://github.com/lly8666/richman4-remastered/commit/fbc7da722a3424cc48c4aadedc3e24236c345397) 修改 `include/rich4/game.hpp`、`src/game.cpp`、`src/events.cpp`、`tools/screens/effects.cpp`、`tools/native_game.cpp`、`tests/game_tests.cpp`：为新闻／导弹批量住宅与设施保存纯视觉的多目标旧状态，news 电影 callback 在规则破坏之前捕获；电影提交帧正确显示最终建筑。规则/RNG/存档字段无变化。
+2. 新测试初次 [CI 39141161728](https://github.com/lly8666/richman4-remastered/actions/runs/39141161728) 因错误假设新闻只选普通地失败；[`d29c5bda`](https://github.com/lly8666/richman4-remastered/commit/d29c5bdaf6b2f14da30f57f617e0ebdbb9f9e6c2) 改为同时覆盖设施。第二次 [CI 39141340512](https://github.com/lly8666/richman4-remastered/actions/runs/39141340512) 因测试爆炸受伤后缺医院出口失败；[`34e0ad99`](https://github.com/lly8666/richman4-remastered/commit/34e0ad99a5697dd620eb6bda516ebd2d498de7df) 完善测试地图，随后 [CI 39141460036](https://github.com/lly8666/richman4-remastered/actions/runs/39141460036) 36/36 通过。
+3. [`579463a0`](https://github.com/lly8666/richman4-remastered/commit/579463a0f8ae06aff60b5734e98ca82776b03409) 继续验证路边正面礼盒、好神3/4、坏神7/8/15、奖励新闻8、毁房新闻5、正负命运金钱25/17；核对原版槽分配，未发现此组代码逻辑存在正负反用。最终核心 [CI 39141604097](https://github.com/lly8666/richman4-remastered/actions/runs/39141604097) **36/36 success**。
+4. 未验收：完整 SDL3/Android NDK 打包与证书对照；手机逐帧观看；具体未知角色的语言错位；换地换屋的历史不完整脉冲；连续多个区域电影交错公告。只向源 `mod` 提交，不更动源 `main`。

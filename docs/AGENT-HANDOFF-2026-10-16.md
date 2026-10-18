@@ -231,3 +231,11 @@ ctest --test-dir build/ci --output-on-failure --parallel 3
 - 源码 `011bae0024df033be92622b98176216118867a0e`（含修复 `16cc57cf` 和测试与交接文档），构建仓库仅 MOD 工作流 pin 更新提交 `44a67274dc644a07299924d825938d0ab21692dc`；Android [#39046665169](https://github.com/lly8666/qairt-sdk-archive/actions/runs/39046665169) **success**，`versionCode=12`，签名公钥指纹仍是 `36778ecf6ef797072560d5cf75777ff508d67a30aa06e15b3e5fabb74e65577d`。Artifact ID `12106426495` / `Richman4-MOD-Android-arm64-test-signed-12`，到期 `2026-10-20T15:52:05Z`。
 - 实际下载并核对 APK：包名 `io.divby0.rich4.mod`，APK 大小 174178431，SHA-256 `26aa2ee56979213afa6ba707553c86f964aaccf31356e4ed5faff5439aaf22ba` 与 `SHA256SUMS.txt` 匹配；10 项必需素材/ARM64 库和 25 MIDI。GitHub 构建记录含 V1/V2/V3 验签 success、持续性密钥加载 success 和准确指纹匹配。**签名密钥从未写入 Git 或报告。**
 - 此后若只补充文字而不改源码，新的纯文档 HEAD 不要求重复打包；必须始终区分“APK 打包的源码 SHA”与“纯文档后续 SHA”。本次没有 Android 真机启动/覆盖安装测试，也没有三文件事务恢复验收。
+
+## 18. 2026-10-18 专项接续：房屋电影闪回与语音正负极性
+
+- 用户发现房屋提前显示最终状态，再倒回旧状态播完动画才再次变为最终状态，同时有正面道具／神明／事件发言似乎是负面。代码审计已定位新闻 4/5/15/20/21 和多目标导弹原先缺少目标旧状态的完整可视记录。
+- `mod` 提交 `fbc7da722a3424cc48c4aadedc3e24236c345397`：`EffectEvent.previous_properties` 记录整组被电影修改的普通地与设施旧面貌；新闻在规则修改前排入电影以捕获旧面貌；导弹/核弹在面积毁损前保存每处旧面貌；主板及 EffectPlayer 统一在提交帧前恢复。随后测试修正 `d29c5bda`、`34e0ad99`，人物语音覆盖追加 `579463a0`。
+- [CI #39141604097](https://github.com/lly8666/richman4-remastered/actions/runs/39141604097) 36/36 success，涵盖多建筑及设施、5 种新闻电影、导弹/核弹、奖励/损失的命运/新闻、人类拾道具、好神与坏神附身。两次早期 CI 因测试不完整失败，详见 [专项审计](audit/MOD-HOUSE-MOVIE-SPEECH-AUDIT-2026-10-18.md)。
+- **已确认原版语音槽** 0–2 获益、3–5 厄运、6–8 收钱、9–11 失钱、22 坏神附身、23 坏神离开。上述样本均没有正负混用，因此本轮未擅改原版 voice IDs；仍需用户视频捕捉罕见错位和音轨时序，区分事件本身喜忧参半与真正错误。
+- 新电影字段只用于实时展示，不修改游戏规则、DAT 布局、ECON-4、股份/银行或 RNG。复杂互换房屋、连续建拆、新闻18、命运0/1和真实安卓帧时刻仍待验证，不能说“所有房屋动画全修复”。下一步对照 Android 正确 MOD 构建 pin、versionCode 和证书指纹，设备复核房屋前后帧以及喜怒声线。

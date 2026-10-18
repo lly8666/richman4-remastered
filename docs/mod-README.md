@@ -119,3 +119,7 @@ MOD 保留原始 DAT 字节布局；溢出旧字段范围的数据在 DAT 写入
 在 [core #39046429771](https://github.com/lly8666/richman4-remastered/actions/runs/39046429771) 36/36 后，本次文档整理和业务修复固定为 `mod` 源码 `011bae0024df033be92622b98176216118867a0e`，仅修改构建仓库的 `.github/workflows/build-richman4-android-mod.yml` pin（构建仓库提交 `44a67274dc644a07299924d825938d0ab21692dc`）。[Android #39046665169](https://github.com/lly8666/qairt-sdk-archive/actions/runs/39046665169) **success**，versionCode **12**（大于此前 11），Artifact `Richman4-MOD-Android-arm64-test-signed-12` / ID `12106426495`，到期 `2026-10-20T15:52:05Z`。工作流核验固定公钥 SHA-256 `36778ecf6ef797072560d5cf75777ff508d67a30aa06e15b3e5fabb74e65577d`，Android 不同 API 范围上的 V1/V2/V3 验签分别成功。公开日志不包含密钥私钥或密码。
 
 从实际下载的 Artifact 二次校验：APK 174,178,431 字节，SHA-256 为 `26aa2ee56979213afa6ba707553c86f964aaccf31356e4ed5faff5439aaf22ba`，与 ZIP 自带 `SHA256SUMS.txt` 一致；独立读取 APK `AndroidManifest.xml` 得到 `io.divby0.rich4.mod`、`versionCode=12`；APK 内 10 个必备资源/ARM64 库及 25 个 MIDI 均存在。**真实 Android 手机的选档、快捷读档、启动、覆盖安装和长时间动画仍未实测。** 本段是源码功能提交后的构建证据，不代表已解决 DAT/MOD/RNG 跨文件事务。
+
+## 2026-10-18 房屋动画闪回与正负语音专项
+
+新增 [房屋动画与人物语音逐项审计](audit/MOD-HOUSE-MOVIE-SPEECH-AUDIT-2026-10-18.md)。本轮已修复新闻单栋／区域破坏及导弹／核弹多建筑同批次事件“先出最终房屋→退回旧房屋→再播电影”的关键路径；原数据结算和 RNG 不变，仅记录每栋房屋的视觉前状态，原 DAT/ECON-4 无变化。正面道具、福神、衰神、奖励新闻、房屋破坏新闻与正负命运金额的原版语音槽已补自动验证，未在这些确定性案例发现好坏语音映射颠倒；未复现的个别角色仍待 Android 录屏与事件 ID。开发提交：`fbc7da72`、`d29c5bda`、`34e0ad99`、`579463a0`。最新 [核心 CI #39141604097](https://github.com/lly8666/richman4-remastered/actions/runs/39141604097) 36/36 通过。**不等于真机全部建筑逐帧验收。**

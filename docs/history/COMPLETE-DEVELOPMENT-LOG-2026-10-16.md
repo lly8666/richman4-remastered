@@ -6,6 +6,15 @@
 
 - [`16cc57cfced55785c52752b61af869ddd583d129`](https://github.com/lly8666/richman4-remastered/commit/16cc57cfced55785c52752b61af869ddd583d129) — `MOD: validate complete save companions in slot picker and quick-load fallback`。新增 `include/rich4/mod_save_load.hpp`，统一实际读档与存档槽位对 `.DAT.mod` 的 checksum、ECON-4 字段和 DAT 饱和预览验证，拒绝丢失/错配侧车，兼容普通原版 DAT；F9 快捷读档可跳过较新但不完整的 Autosave。新增专项回归 `mod_save_load_slot_integrity`；[CI 39046429771](https://github.com/lly8666/richman4-remastered/actions/runs/39046429771) 36/36 成功。**三文件跨文件原子事务和 Android 真机运行仍未验收，不能据此关闭原有风险。**
 
+
+## 2026-10-18 增量修复索引（上面的 385 条历史不变）
+
+- [`fbc7da722a3424cc48c4aadedc3e24236c345397`](https://github.com/lly8666/richman4-remastered/commit/fbc7da722a3424cc48c4aadedc3e24236c345397) — 逐处修正灾难／房屋新闻／导弹的多目标旧外观记录和提交帧保护；补核心房屋/语音回归。
+- [`d29c5bdaf6b2f14da30f57f617e0ebdbb9f9e6c2`](https://github.com/lly8666/richman4-remastered/commit/d29c5bdaf6b2f14da30f57f617e0ebdbb9f9e6c2) — 新闻随机选择土地或设施的测试设置修复。
+- [`34e0ad99a5697dd620eb6bda516ebd2d498de7df`](https://github.com/lly8666/richman4-remastered/commit/34e0ad99a5697dd620eb6bda516ebd2d498de7df) — 区域导弹测试地图医院出口修复。
+- [`579463a0f8ae06aff60b5734e98ca82776b03409`](https://github.com/lly8666/richman4-remastered/commit/579463a0f8ae06aff60b5734e98ca82776b03409) — 路边正面道具、好/坏神、好/坏新闻语音槽回归。
+- 中间 [CI #39141161728](https://github.com/lly8666/richman4-remastered/actions/runs/39141161728)、[#39141340512](https://github.com/lly8666/richman4-remastered/actions/runs/39141340512) 先后因测试地图覆盖不足失败，已修正；[最终核心 CI #39141604097](https://github.com/lly8666/richman4-remastered/actions/runs/39141604097) 36/36 通过。完整审计：[房屋动画与人物语音](../audit/MOD-HOUSE-MOVIE-SPEECH-AUDIT-2026-10-18.md)。Android 真机仍未验收。
+
 ## 一、项目与分支
 - 源代码：[richman4-remastered](https://github.com/lly8666/richman4-remastered)；标准重构 `main` 用于尽力贴合 Windows 大富翁4 v3.11。
 - 独立实验版 `mod` 从 2026-10-15 的原版修复提交 `f87e8dca` 分出；**全部改版规则只进 mod，不回写 main**。
