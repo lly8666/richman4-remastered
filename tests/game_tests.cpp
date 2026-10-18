@@ -2186,20 +2186,30 @@ void mod_building_movie_and_speech_regressions() {
         value.lands[1].y = 160;
         value.lands[1].economy.owner_code = 2;
         value.lands[1].economy.level = 3;
+        value.facilities[1].owner_code = 2;
+        value.facilities[1].level = 3;
+        value.facilities[1].facility_type = 2;
         rich4::Random random(5);
         bool captured = false, damaged = false;
+        std::uint16_t selected = 0;
         rich4::EventCallbacks cb;
         cb.news_picture = [&](std::uint8_t movie, std::uint16_t code) {
-            captured = movie == id && code == 2001 && value.lands[1].economy.level == 3;
+            selected = code;
+            const auto old_level = code == 2001 ? value.lands[1].economy.level
+                                 : code == 4001 ? value.facilities[1].level : 0;
+            captured = movie == id && (code == 2001 || code == 4001) && old_level == 3;
         };
         cb.area_damage = [&](std::uint16_t, std::uint16_t, std::uint8_t, bool) {
             require(captured, "disaster mutated before movie pre-state capture");
             value.lands[1].economy.level = 0;
+            value.facilities[1].level = 0;
             damaged = true;
         };
         auto result = rich4::apply_news_id(value, random, static_cast<std::uint8_t>(id), cb);
         require(result.supported && captured, "news movie lost original building");
-        require(id == 4 || id == 20 ? damaged : value.lands[1].economy.level < 3,
+        const auto after_level = selected == 2001 ? value.lands[1].economy.level
+                               : value.facilities[1].level;
+        require(id == 4 || id == 20 ? damaged : after_level < 3,
                 "news building damage failed");
     }
     for (unsigned tool : {7U, 13U}) {
