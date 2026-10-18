@@ -2223,6 +2223,9 @@ void mod_building_movie_and_speech_regressions() {
         facility.id = 1; facility.x = 310; facility.y = 160;
         facility.owner_code = 2; facility.level = 3; facility.facility_type = 2;
         value.players[0].state.tool_amounts[tool-1] = 1;
+        // A blast may also injure a nearby player; give the fixture an
+        // actual hospital node so the scenario can finish before assertions.
+        value.nodes[8].flags = (value.nodes[8].flags & ~0xffU) | 5U;
         rich4::GameSession game(std::move(value), 9);
         const auto rng = game.random_state();
         require(game.use_tool(tool, 2001), "house-targeted missile not accepted");
