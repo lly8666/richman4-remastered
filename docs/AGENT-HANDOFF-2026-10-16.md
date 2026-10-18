@@ -239,3 +239,10 @@ ctest --test-dir build/ci --output-on-failure --parallel 3
 - [CI #39141604097](https://github.com/lly8666/richman4-remastered/actions/runs/39141604097) 36/36 success，涵盖多建筑及设施、5 种新闻电影、导弹/核弹、奖励/损失的命运/新闻、人类拾道具、好神与坏神附身。两次早期 CI 因测试不完整失败，详见 [专项审计](audit/MOD-HOUSE-MOVIE-SPEECH-AUDIT-2026-10-18.md)。
 - **已确认原版语音槽** 0–2 获益、3–5 厄运、6–8 收钱、9–11 失钱、22 坏神附身、23 坏神离开。上述样本均没有正负混用，因此本轮未擅改原版 voice IDs；仍需用户视频捕捉罕见错位和音轨时序，区分事件本身喜忧参半与真正错误。
 - 新电影字段只用于实时展示，不修改游戏规则、DAT 布局、ECON-4、股份/银行或 RNG。复杂互换房屋、连续建拆、新闻18、命运0/1和真实安卓帧时刻仍待验证，不能说“所有房屋动画全修复”。下一步对照 Android 正确 MOD 构建 pin、versionCode 和证书指纹，设备复核房屋前后帧以及喜怒声线。
+
+### 2026-10-18 Android ARM64 APK v13 实际构建和固定签名证据
+
+- 游戏 **实际打包代码/文档 SHA**：`92a2541e696263ff4db3c1b7d14cfdacadce5a77`（代码最后一次修改为 `579463a0f8ae06aff60b5734e98ca82776b03409`）；构建仓库 MOD 专用 workflow 提交 [`b3ea3f92`](https://github.com/lly8666/qairt-sdk-archive/commit/b3ea3f92797794d6cb8889b2b08e6f9acac0f78f)。**仅更改 MOD 工作流 pin，原版 main 和主线工作流未修改**。
+- [Android MOD #39141949665](https://github.com/lly8666/qairt-sdk-archive/actions/runs/39141949665) **success**。工作流在日志确认 `MOD Android versionCode = 13`、`BUILD SUCCESSFUL`、从加密 Secrets 使用保留私钥（**没有生成新证书**），v1/v2/v3 三个 SDK 范围验证成功，公开证书 SHA-256 `36778ecf6ef797072560d5cf75777ff508d67a30aa06e15b3e5fabb74e65577d` 匹配；包名来源 `android/app/build.gradle.kts` 的 `io.divby0.rich4.mod`，ABI `arm64-v8a`。
+- **Artifact**：`Richman4-MOD-Android-arm64-test-signed-13`，ID `12141743970`，预期过期 `2026-10-21T15:49:24Z`；独立取出 APK `174178431` 字节，10 项必备文件（包括 `libmain.so`、`libSDL3.so`）及 25 首 MIDI 齐全；其 SHA-256 `b653e32d67927626db98f547f6a4f910944f515c107fe9d4b449fc0f3d91772a` 与构建包的 `SHA256SUMS.txt` 一致。
+- **验收边界**：核心 CTest 36/36、完整 Android 编译、APK 资源完整与固定签名**已经验证**；真实 Android 手机上每个房屋闪回、神明/新闻人物声线、触屏、连续多事件和原版 Windows 逐帧对照**均未验收**。此包与 v12 共用固定证书且 versionCode 13 > 12，满足 Android 同包名原地更新的签名版本条件；旧临时签名的历史 APK 仍不可直接覆盖。备份 `.DAT`、`.DAT.mod`、`.rng`。

@@ -39,3 +39,10 @@
 第一次 [CI #39141161728](https://github.com/lly8666/richman4-remastered/actions/runs/39141161728) 因新测试错误假设新闻只能选普通地失败；修正后 [#39141340512](https://github.com/lly8666/richman4-remastered/actions/runs/39141340512) 又因爆炸案例未配置医院出口失败。补齐测试地图后 [#39141460036](https://github.com/lly8666/richman4-remastered/actions/runs/39141460036) 36/36 成功；追加好坏神明和道具／新闻语音测试后 [#39141604097](https://github.com/lly8666/richman4-remastered/actions/runs/39141604097) 36/36 成功。**这些中间失败是测试夹具错误，已修复；不可声称未发生过。**
 
 Android 完整构建及新 APK SHA/签名证书需要单独对应最新 HEAD 核查。未取得真实 Android 视频，尤其需测试连续两个拆／建影片叠加上屏弹框、新闻+核弹、魔法建造+神明和所有特殊角色。
+
+### 2026-10-18 Android ARM64 APK v13 实际构建和固定签名证据
+
+- 游戏 **实际打包代码/文档 SHA**：`92a2541e696263ff4db3c1b7d14cfdacadce5a77`（代码最后一次修改为 `579463a0f8ae06aff60b5734e98ca82776b03409`）；构建仓库 MOD 专用 workflow 提交 [`b3ea3f92`](https://github.com/lly8666/qairt-sdk-archive/commit/b3ea3f92797794d6cb8889b2b08e6f9acac0f78f)。**仅更改 MOD 工作流 pin，原版 main 和主线工作流未修改**。
+- [Android MOD #39141949665](https://github.com/lly8666/qairt-sdk-archive/actions/runs/39141949665) **success**。工作流在日志确认 `MOD Android versionCode = 13`、`BUILD SUCCESSFUL`、从加密 Secrets 使用保留私钥（**没有生成新证书**），v1/v2/v3 三个 SDK 范围验证成功，公开证书 SHA-256 `36778ecf6ef797072560d5cf75777ff508d67a30aa06e15b3e5fabb74e65577d` 匹配；包名来源 `android/app/build.gradle.kts` 的 `io.divby0.rich4.mod`，ABI `arm64-v8a`。
+- **Artifact**：`Richman4-MOD-Android-arm64-test-signed-13`，ID `12141743970`，预期过期 `2026-10-21T15:49:24Z`；独立取出 APK `174178431` 字节，10 项必备文件（包括 `libmain.so`、`libSDL3.so`）及 25 首 MIDI 齐全；其 SHA-256 `b653e32d67927626db98f547f6a4f910944f515c107fe9d4b449fc0f3d91772a` 与构建包的 `SHA256SUMS.txt` 一致。
+- **验收边界**：核心 CTest 36/36、完整 Android 编译、APK 资源完整与固定签名**已经验证**；真实 Android 手机上每个房屋闪回、神明/新闻人物声线、触屏、连续多事件和原版 Windows 逐帧对照**均未验收**。此包与 v12 共用固定证书且 versionCode 13 > 12，满足 Android 同包名原地更新的签名版本条件；旧临时签名的历史 APK 仍不可直接覆盖。备份 `.DAT`、`.DAT.mod`、`.rng`。
