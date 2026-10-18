@@ -2242,6 +2242,56 @@ void mod_building_movie_and_speech_regressions() {
                 "missile must capture ALL old neighbouring houses before blast");
         require(game.random_state() == rng, "visual house snapshots consumed rule RNG");
     }
+    // Positive and harmful news must use distinct original event-string slots.
+    for (const auto [id, reward] : {std::pair{8U,true}, std::pair{5U,false}}) {
+        auto value = world();
+        value.lands[1].economy.owner_code = reward ? 1 : 2;
+        value.lands[1].economy.level = 3;
+        rich4::Random random(7);
+        std::vector<std::uint8_t> heard;
+        rich4::EventCallbacks cb;
+        cb.voice = [&](std::size_t, std::uint8_t category) { heard.push_back(category); };
+        const auto result = rich4::apply_news_id(value, random, static_cast<std::uint8_t>(id), cb);
+        require(result.supported && !heard.empty(), "news must report its recipient's reaction");
+        require(std::all_of(heard.begin(), heard.end(), [reward](auto category) {
+            return reward ? (category>=6 && category<=8) : (category>=3 && category<=5);
+        }), "news award and housing-loss speech slots were confused");
+    }
+    // A gift on the road and small lucky gods must never use slot 22 reserved
+    // for harmful god arrival; harmful gods must not use the reward slots.
+    {
+        auto value = world();
+        value.objects[0].kind = 13; // roadside present
+        value.objects[0].node_id = 2;
+        value.tool_supply.fill(5);
+        rich4::Random random(7);
+        std::vector<std::uint8_t> heard;
+        rich4::gods::Callbacks cb;
+        cb.remove_object = [](std::uint16_t) {};
+        cb.voice = [&](std::size_t, std::uint8_t category) { heard.push_back(category); };
+        const auto result = rich4::gods::touch(value, random, 0, 1, true, cb);
+        require(result.supported && result.applied && !heard.empty() &&
+                    std::all_of(heard.begin(), heard.end(), [](auto category) { return category <= 2; }),
+                "positive roadside tool gift spoke a negative event line");
+    }
+    for (const auto [kind, bad] : {std::pair{3U,false}, std::pair{4U,false},
+                                   std::pair{7U,true}, std::pair{8U,true}, std::pair{15U,true}}) {
+        auto value = world();
+        value.objects[0].kind = static_cast<std::uint8_t>(kind);
+        value.objects[0].node_id = 2;
+        value.card_supply.fill(5);
+        if (bad)
+            value.players[0].state.cards[0] = 3;
+        rich4::Random random(7);
+        std::vector<std::uint8_t> heard;
+        rich4::gods::Callbacks cb;
+        cb.remove_object = [](std::uint16_t) {};
+        cb.voice = [&](std::size_t, std::uint8_t category) { heard.push_back(category); };
+        const auto result = rich4::gods::attach(value, random, 0, 1, 2, cb);
+        require(result.supported && !heard.empty(), "god's original speech is missing");
+        require(bad ? heard.front()==22 : heard.front()<=2,
+                "good god used bad-god speech or bad god used reward speech");
+    }
     // Reward voice slots are 6..8, adverse payment voices 9..11.
     for (const auto [id, positive] : {std::pair{25U,true}, std::pair{17U,false}}) {
         auto value=world();
